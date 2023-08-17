@@ -15,7 +15,7 @@ Json::Document XmlToJson(const Xml::Document& doc) {
   for (const Xml::Node& n : doc.GetRoot().Children()) {
     result.emplace_back(map<string, Json::Node>{
       {"category", Json::Node{n.AttributeValue<string>("category")}},
-      {"amount", Json::Node(n.AttributeValue<string>("amount"))}
+      {"amount", Json::Node(n.AttributeValue<int>("amount"))}
     });
   }
 
@@ -24,10 +24,10 @@ Json::Document XmlToJson(const Xml::Document& doc) {
 
 Xml::Document JsonToXml(const Json::Document& doc, string root_name) {
   Xml::Node root(std::move(root_name), {});
-  for (const auto& n : doc.GetRoot().AsArray()) {
+  for (const Json::Node& n : doc.GetRoot().AsArray()) {
     root.AddChild(Xml::Node("spend", {
       {"category", n.AsMap().at("category").AsString()},
-      {"amount", n.AsMap().at("amount").AsString()},
+      {"amount", to_string(n.AsMap().at("amount").AsInt())},
     }));
   }
   return Xml::Document(root);
