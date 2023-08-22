@@ -126,34 +126,64 @@ size_t Wealthy(const vector<Person>& people, int count) {
 	return total_income;
 }
 
-string PopularName(const vector<Person>& people, char gender) {
-	stringstream ss;
+pair<string, string> PopularName(vector<Person> people) {
+	pair<string, string> result = {"", ""};
 
-	auto first = find_if(begin(people), end(people), [gender](const Person& p) {
-		return p.gender == (gender == 'M' ? Gender::MALE : Gender::FEMALE);
-	});
+	auto male_end = partition(begin(people), end(people), [](Person& p) {
+        return p.gender == Gender::MALE;
+    });
 
-    if (first == people.end()) {
-      ss << "No people of gender " << gender << '\n';
-    } else {
-      string most_popular_name = people.begin()->name;
-      int count = 1;
-      for (auto i = first; i != people.end(); ) {
-        auto same_name_end = find_if_not(i, people.end(), [i](const Person& p) {
-          return p.name == i->name;
-        });
-        auto cur_name_count = std::distance(i, same_name_end);
-        if (cur_name_count > count) {
-          count = cur_name_count;
-          most_popular_name = i->name;
-        }
-        i = same_name_end;
-      }
-      ss << "Most popular name among people of gender " << gender << " is "
-           << most_popular_name << '\n';
-    }
+	IteratorRange male_range {
+		begin(people),
+		male_end
+	};
+	IteratorRange female_range {
+		male_end,
+		end(people)
+	};
 
-    return ss.str();
+
+	if (male_range.begin() != male_range.end()) {
+		unordered_map<string, int> frequency_male;
+
+		for (const Person& person : male_range) {
+			frequency_male[person.name]++;
+		}
+
+		int maxCount = 0;
+		string mostFrequentString = frequency_male.begin()->first;
+
+		for (const auto& entry : frequency_male) {
+			if (entry.second > maxCount ||
+				(entry.second == maxCount && entry.first < mostFrequentString)) {
+			    maxCount = entry.second;
+			    mostFrequentString = entry.first;
+			}
+		}
+		result.first = mostFrequentString;
+	}
+
+	if (female_range.begin() != female_range.end()) {
+		unordered_map<string, int> frequency_female;
+
+		for (const Person& person : female_range) {
+			frequency_female[person.name]++;
+		}
+
+		int maxCount = 0;
+		string mostFrequentString = frequency_female.begin()->first;
+
+		for (const auto& entry : frequency_female) {
+			if (entry.second > maxCount ||
+				(entry.second == maxCount && entry.first < mostFrequentString)) {
+			    maxCount = entry.second;
+			    mostFrequentString = entry.first;
+			}
+		}
+		result.second = mostFrequentString;
+	}
+
+    return result;
 }
 
 struct Statistics {
@@ -174,9 +204,10 @@ int main() {
 
   vector<Person> sorted_by_age = SortByAge(people);
   vector<Person> sorted_by_income = SortByIncome(people);
-  vector<Person> sortedMW_by_name = SortGenByName(people);
 
-  Statistics stats(PopularName(sortedMW_by_name, 'M'), PopularName(sortedMW_by_name, 'W'));
+  pair<string, string> popularNames = PopularName(people);
+
+  Statistics stats(popularNames.first, popularNames.second);
 
   for (string command; cin >> command; ) {
     if (command == "AGE") {
@@ -203,10 +234,19 @@ int main() {
       cin >> gender;
 
       if (gender == 'M') {
-    	  cout << stats.popular_name_m_ans;
+    	  if (stats.popular_name_m_ans != "") {
+    		  cout << "Most popular name among people of gender " << gender << " is "
+    		       << stats.popular_name_m_ans << '\n';
+    		  continue;
+    	  }
       } else {
-    	  cout << stats.popular_name_w_ans;
+    	  if (stats.popular_name_w_ans != "") {
+    		  cout << "Most popular name among people of gender " << gender << " is "
+    		       << stats.popular_name_w_ans << '\n';
+    		  continue;
+    	  }
       }
+      cout << "No people of gender " << gender << '\n';
 
     }
   }
