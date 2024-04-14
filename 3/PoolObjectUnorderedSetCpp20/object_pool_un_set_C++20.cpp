@@ -1,4 +1,4 @@
-#include "test_runner.h"
+#include "../../test_runner.h"
 
 #include <algorithm>
 #include <iostream>
@@ -6,6 +6,7 @@
 #include <queue>
 #include <stdexcept>
 #include <set>
+#include <unordered_set>
 #include <memory>
 
 using namespace std;
@@ -20,27 +21,46 @@ public:
 
 private:
   // Определяем свой компаратор
-  struct Compare {
+  struct Hash {
 	  using is_transparent = void; // Сделали компаратор прозрачным
 
-	  // Используем стандартное сравнение ключей
-	  bool operator() (const unique_ptr<T>& lhs, const unique_ptr<T>& rhs) const {
-		  return lhs < rhs;
+	  // hash
+	  size_t operator() (const unique_ptr<T>& ptr) const {
+		  return hash<const T*>()(ptr.get());
 	  }
 
-	  // Определяем функции сравненпия ключа и обычного указателя
+	  size_t operator()(const T* ptr) const {
+          return std::hash<const T*>()(ptr);
+      }
+
+	  size_t operator()(T* ptr) const {
+          return std::hash<T*>()(ptr);
+      }
+  };
+
+  struct Equal {
+	  using is_transparent = void; // Сделали компаратор прозрачным
+
+	  // equal
+	  bool operator() (const unique_ptr<T>& lhs, const unique_ptr<T>& rhs) const {
+		  return equal_to<const T*>()(lhs.get(), rhs.get());
+		  // return lhs.get() == rhs.get();
+	  }
+
 	  bool operator() (const unique_ptr<T>& lhs, const T* rhs) const {
-		  return less<const T*>()(lhs.get(), rhs);
+		  return equal_to<const T*>()(lhs.get(), rhs);
+		  // return lhs.get() == rhs;
 	  }
 
 	  bool operator() (const T* lhs, const unique_ptr<T>& rhs) const {
-		  return less<const T*>()(lhs, rhs.get());
+		  return equal_to<const T*>()(lhs, rhs.get());
+		  // return lhs == rhs.get();
 	  }
-
   };
+
   // Добавьте сюда поля
   queue<unique_ptr<T>> free;
-  set<unique_ptr<T>, Compare> allocated;
+  unordered_set<unique_ptr<T>, Hash, Equal> allocated;
 };
 
 template <typename T>
@@ -67,7 +87,7 @@ template <typename T>
 void ObjectPool<T>::Deallocate(T* object) {
 	auto it = allocated.find(object);
 	if(it == allocated.end()) {
-		throw invalid_argument("");
+		throw invalid_argument("WAS NOT FOUND IDIOT!!!");
 	}
 
 	free.push(move(allocated.extract(it).value()));
