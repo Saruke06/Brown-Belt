@@ -22,8 +22,8 @@ public:
       string content,
       atomic<size_t>& memory_used_by_books
   )
-    : name_(move(name))
-    , content_(move(content))
+    : name_(std::move(name))
+    , content_(std::move(content))
     , memory_used_by_books_(memory_used_by_books)
   {
     memory_used_by_books_ += content_.size();
