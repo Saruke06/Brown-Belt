@@ -5,17 +5,47 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <optional>
+#include <sstream>
 
 using namespace std;
 
-string_view ReadToken(string_view& str, string_view delimeter) {
-    
+pair<string_view, optional<string_view>> SplitTwoStrict(string_view s, string_view delimiter) {
+    const size_t pos = s.find(delimiter);
+    if (pos == s.npos) {
+        return {s, nullopt};
+    } else {
+        return {s.substr(0, pos), s.substr(pos + delimiter.length())};
+    }
+}
+
+pair<string_view, string_view> SplitTwo(string_view s, string_view delimiter) {
+    const auto [lhs, rhs_opt] = SplitTwoStrict(s, delimiter);
+    return {lhs, rhs_opt.value_or("")};
+}
+
+string_view ReadToken(string_view& str, string_view delimiter) {
+    const auto [lhs, rhs] = SplitTwo(str, delimiter);
+    str = rhs;
+    return lhs;
+}
+
+int ConvertToInt(string_view str) {
+    size_t pos;
+    const int result = stoi(string(str), &pos);
+    if (pos != str.length()) {
+        std::stringstream error;
+        error << "string " << str << " contains " << (str.length() - pos) << " trailing chars";
+        throw invalid_argument(error.str());
+    }
+    return result;
 }
 
 class Date {
 public:
     static Date ParseFrom(string_view str) {
         const int year = ConvertToInt(ReadToken(str, "-"));
+        const int month = ConvertToInt(ReadToken(str, "-"));
     }
 
     time_t AsTimestamp() const {
@@ -107,17 +137,6 @@ Request ReadRequest(istream& is = cin) {
     }
 }
 
-pair<string_view, string_view> SplitTwo(string_view s, string_view delimiter = " ") {
-    const auto [lhs, rhs_opt] = SplitTwoStrict(s, delimiter);
-    return {lhs, rhs_opt.value_or("")};
-}
-
-string_view ReadToken(string_view& s, string_view delimiter = " ") {
-    const auto [lhs, rhs] = SplitTwo(s, delimiter);
-    s = rhs;
-    return lhs;
-}
-
 template <typename Number>
 Number ReadNumberOnLine(istream& is = cin) {
     Number number;
@@ -132,9 +151,6 @@ const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
     {"Earn", RequestType::EARN},
     {"PayTax", RequestType::PAY_TAX}
 };
-
-
-optional<Request::Type>
 
 Request ParseRequest(string_view request_str) {
     const auto request_type = ConvertRequestTypeFromString(ReadToken(request_str));
