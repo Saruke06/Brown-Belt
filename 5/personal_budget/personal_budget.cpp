@@ -3,14 +3,21 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <memory>
+#include <unordered_map>
 
 using namespace std;
 
-struct Date {
-    int day_;
-    int month_;
-    int year_;
-    Date() = default;
+string_view ReadToken(string_view& str, string_view delimeter) {
+    
+}
+
+class Date {
+public:
+    static Date ParseFrom(string_view str) {
+        const int year = ConvertToInt(ReadToken(str, "-"));
+    }
+
     time_t AsTimestamp() const {
         std::tm t;
         t.tm_sec   = 0;
@@ -22,16 +29,10 @@ struct Date {
         t.tm_isdst = 0;
         return mktime(&t);
     }
-};
-
-istream& operator>>(istream& is, Date& date) {
-    char c1, c2;
-    if (is >> date.year_ >> c1 >> date.month_ >> c2 >> date.day_ &&
-        c1 == '-' && c2 == '-') {
-        return is;
-    } else {
-        throw invalid_argument("Wrong date format");
-    }
+private:
+    int day_;
+    int month_;
+    int year_;
 };
 
 int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
@@ -41,17 +42,50 @@ int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
     return (timestamp_to - timestamp_from) / SECONDS_IN_DAY;
 }
 
-enum class RequestType {
-    COMPUTE_INCOME,
-    EARN,
-    PAY_TAX
-};
+struct Request;
+using RequestHolder = unique_ptr<Request>;
 
 struct Request {
-    RequestType type;
-    Date from;
-    Date to;
-    int value = 0;
+    enum class Type {
+        COMPUTE_INCOME,
+        EARN,
+        PAY_TAX
+    };
+
+    Request(Type type) : type(type) {}
+    static RequestHolder Create(Type type);
+    virtual void ParseFrom(string_view input) = 0;
+    virtual ~Request() = default;
+
+    const Type type;
+};
+
+const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
+    {"ComputeIncome", Request::Type::COMPUTE_INCOME},
+    {"Earn", Request::Type::EARN},
+    {"PayTax", Request::Type::PAY_TAX}
+};
+
+template <typename ResultType>
+struct ReadRequest : Request {
+    using Request::Request;
+    virtual ResultType Process(const BudgetManager& manager) const = 0; 
+};
+
+struct ModifyRequest : Request {
+    using Request::Request;
+    virtual void Process(BudgetManager& manager) const = 0;
+};
+
+struct ComputeIncomeRequest : ReadRequest<double> {
+    ComputeIncomeRequest() : ReadRequest(Type::COMPUTE_INCOME) {}
+
+    void ParseFrom(string_view input) override {
+        date_from = ReadT
+    }
+
+    Date date_from;
+    Date date_to;
 };
 
 
