@@ -3,6 +3,9 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <optional>
+#include <unordered_map>
+#include <memory>
 
 using namespace std;
 
@@ -41,38 +44,44 @@ int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
     return (timestamp_to - timestamp_from) / SECONDS_IN_DAY;
 }
 
-enum class RequestType {
-    COMPUTE_INCOME,
-    EARN,
-    PAY_TAX
-};
+struct Request;
+using RequestHolder = unique_ptr<Request>;
 
 struct Request {
-    RequestType type;
-    Date from;
-    Date to;
-    int value = 0;
+    enum class Type {
+        COMPUTE_INCOME,
+        EARN,
+        PAY_TAX
+    };
+    
+    Request(Type type) : type(type) {}
+    static RequestHolder Create(Type type);
+    virtual void Create() = 0;
+    virtual ~Request() = default;
+
+    const Type type;
 };
 
 
-Request ReadRequest(istream& is = cin) {
-    Request query;
-    string type;
-    is >> type;
-    if (type == "ComputeIncome") {
-        query.type = RequestType::COMPUTE_INCOME;
-        is >> query.from >> query.to;
-    } else if (type == "Earn") {
-        query.type = RequestType::EARN;
-        is >> query.from >> query.to >> query.value;
-    } else if (type == "PayTax") {
-        query.type = RequestType::PAY_TAX;
-        is >> query.from >> query.to >> query.value;
+pair<string_view, optional<string_view>> SplitTwoStrict(string_view s, string_view delimiter = " ") {
+    const size_t pos = s.find(delimiter);
+    if (pos == s.npos) {
+        return {s, nullopt};
     } else {
-        throw invalid_argument("Unknown query type");
+        return {s.substr(0, pos), s.substr(pos + delimiter.length())};
     }
-    return query;
-};
+}
+
+pair<string_view, string_view> SplitTwo(string_view s, string_view delimiter = " ") {
+    const auto [lhs, rhs_opt] = SplitTwoStrict(s, delimiter);
+    return {lhs, rhs_opt.value_or("")};
+}
+
+string_view ReadToken(string_view& s, string_view delimiter = " ") {
+    const auto [lhs, rhs] = SplitTwo(s, delimiter);
+    s = rhs;
+    return lhs;
+}
 
 template <typename Number>
 Number ReadNumberOnLine(istream& is = cin) {
@@ -83,7 +92,17 @@ Number ReadNumberOnLine(istream& is = cin) {
     return number;
 }
 
+const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
+    {"ComputeIncome", RequestType::COMPUTE_INCOME},
+    {"Earn", RequestType::EARN},
+    {"PayTax", RequestType::PAY_TAX}
+};
+
+
+optional<Request::Type>
+
 Request ParseRequest(string_view request_str) {
+    const auto request_type = ConvertRequestTypeFromString(ReadToken(request_str));
 
 }
 
