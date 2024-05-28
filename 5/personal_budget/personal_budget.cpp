@@ -3,17 +3,21 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
-#include <optional>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 using namespace std;
 
-struct Date {
-    int day_;
-    int month_;
-    int year_;
-    Date() = default;
+string_view ReadToken(string_view& str, string_view delimeter) {
+    
+}
+
+class Date {
+public:
+    static Date ParseFrom(string_view str) {
+        const int year = ConvertToInt(ReadToken(str, "-"));
+    }
+
     time_t AsTimestamp() const {
         std::tm t;
         t.tm_sec   = 0;
@@ -25,16 +29,10 @@ struct Date {
         t.tm_isdst = 0;
         return mktime(&t);
     }
-};
-
-istream& operator>>(istream& is, Date& date) {
-    char c1, c2;
-    if (is >> date.year_ >> c1 >> date.month_ >> c2 >> date.day_ &&
-        c1 == '-' && c2 == '-') {
-        return is;
-    } else {
-        throw invalid_argument("Wrong date format");
-    }
+private:
+    int day_;
+    int month_;
+    int year_;
 };
 
 int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
@@ -53,20 +51,57 @@ struct Request {
         EARN,
         PAY_TAX
     };
-    
+
     Request(Type type) : type(type) {}
     static RequestHolder Create(Type type);
-    virtual void Create() = 0;
+    virtual void ParseFrom(string_view input) = 0;
     virtual ~Request() = default;
 
     const Type type;
 };
 
+const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
+    {"ComputeIncome", Request::Type::COMPUTE_INCOME},
+    {"Earn", Request::Type::EARN},
+    {"PayTax", Request::Type::PAY_TAX}
+};
 
-pair<string_view, optional<string_view>> SplitTwoStrict(string_view s, string_view delimiter = " ") {
-    const size_t pos = s.find(delimiter);
-    if (pos == s.npos) {
-        return {s, nullopt};
+template <typename ResultType>
+struct ReadRequest : Request {
+    using Request::Request;
+    virtual ResultType Process(const BudgetManager& manager) const = 0; 
+};
+
+struct ModifyRequest : Request {
+    using Request::Request;
+    virtual void Process(BudgetManager& manager) const = 0;
+};
+
+struct ComputeIncomeRequest : ReadRequest<double> {
+    ComputeIncomeRequest() : ReadRequest(Type::COMPUTE_INCOME) {}
+
+    void ParseFrom(string_view input) override {
+        date_from = ReadT
+    }
+
+    Date date_from;
+    Date date_to;
+};
+
+
+Request ReadRequest(istream& is = cin) {
+    Request query;
+    string type;
+    is >> type;
+    if (type == "ComputeIncome") {
+        query.type = RequestType::COMPUTE_INCOME;
+        is >> query.from >> query.to;
+    } else if (type == "Earn") {
+        query.type = RequestType::EARN;
+        is >> query.from >> query.to >> query.value;
+    } else if (type == "PayTax") {
+        query.type = RequestType::PAY_TAX;
+        is >> query.from >> query.to >> query.value;
     } else {
         return {s.substr(0, pos), s.substr(pos + delimiter.length())};
     }
