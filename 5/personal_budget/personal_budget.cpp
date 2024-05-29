@@ -41,11 +41,71 @@ int ConvertToInt(string_view str) {
     return result;
 }
 
+template <typename Number>
+void ValidateBounds(Number number_to_check, Number min_value, Number max_value) {
+    if (number_to_check < min_value || number_to_check > max_value) {
+        std::stringstream error;
+        error << number_to_check << " is out of [" << min_value << ", " << max_value << "]";
+        throw invalid_argument(error.str());
+    }
+}
+
+struct IndexSegment {
+    size_t left;
+    size_t right;
+
+    size_t length() const {
+        return right - left;
+    }
+    bool empty() const {
+        return length() == 0;;
+    }
+
+    bool Contains(IndexSegment other) const {
+        return left <= other.left && right >= other.right;
+    }
+};
+
+IndexSegment IntersectSegments(IndexSegment lhs, IndexSegment rhs) {
+    const size_t left = max(lhs.left, rhs.left);
+    const size_t right = min(lhs.right, rhs.right);
+    return {left, max(left, right)};
+}
+
+bool AreSegmentsIntersected(IndexSegment lhs, IndexSegment rhs) {
+    return !(lhs.right <= rhs.left || rhs.right <= lhs.left);
+}
+
+struct BulkMoneyAdder {
+    double delta = 0.0;
+};
+
+constexpr uint8_t TAX_PERCENTAGE = 13;
+
+struct BulkTaxApplier {
+    static constexpr double FACTOR = 1.0 - TAX_PERCENTAGE / 100.0;
+    uint32_t count = 0;
+
+    double ComputeFactor() const {
+        return pow(FACTOR, count);
+    }
+};
+
+class BulkLinearUpdater {
+public:
+    BulkLinearUpdater() = default;
+
+};
+
 class Date {
 public:
     static Date ParseFrom(string_view str) {
         const int year = ConvertToInt(ReadToken(str, "-"));
         const int month = ConvertToInt(ReadToken(str, "-"));
+        ValidateBounds(month, 1, 12);
+        const int day = ConvertToInt(str);
+        ValidateBounds(day, 1, 31);
+        return {year, month, day};
     }
 
     time_t AsTimestamp() const {
@@ -60,9 +120,12 @@ public:
         return mktime(&t);
     }
 private:
-    int day_;
-    int month_;
     int year_;
+    int month_;
+    int day_;
+    
+    Date(int year, int month, int day)
+        : day_(day), month_(month), year_(year) {}
 };
 
 int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
@@ -70,6 +133,14 @@ int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
     const time_t timestamp_from = date_from.AsTimestamp();
     static const int SECONDS_IN_DAY = 60 * 60 * 24;
     return (timestamp_to - timestamp_from) / SECONDS_IN_DAY;
+}
+
+static const Date START_DATE = Date::ParseFrom("2000-01-01");
+static const Date END_DATE = Date::ParseFrom("2100-01-01");
+static const size_t DAY_COUNT = ComputeDaysDiff(START_DATE, END_DATE); 
+
+size_t ComputeDayIndex(const Date& date) {
+    return ComputeDaysDiff(date, START_DATE);
 }
 
 struct Request;
