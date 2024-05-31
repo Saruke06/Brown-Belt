@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -21,6 +22,7 @@ public:
   Range(It begin, It end) : begin_(begin), end_(end) {}
   It begin() const { return begin_; }
   It end() const { return end_; }
+  size_t size() const { return distance(begin_, end_); }
 
 private:
   It begin_;
@@ -54,7 +56,7 @@ int ConvertToInt(string_view str) {
   if (pos != str.length()) {
     std::stringstream error;
     error << "string " << str << " contains " << (str.length() - pos) << " trailing chars";
-    throw invalid_argument(error.str());
+    throw std::invalid_argument(error.str());
   }
   return result;
 }
@@ -64,8 +66,35 @@ void ValidateBounds(Number number_to_check, Number min_value, Number max_value) 
   if (number_to_check < min_value || number_to_check > max_value) {
     std::stringstream error;
     error << number_to_check << " is out of [" << min_value << ", " << max_value << "]";
-    throw out_of_range(error.str());
+    throw std::out_of_range(error.str());
   }
+}
+
+struct MoneyState {
+  double earned = 0.0;
+  double spent = 0.0;
+
+  double ComputeIncome() const {
+    return earned - spent;
+  }
+
+  MoneyState& operator+=(const MoneyState& other) {
+    earned += other.earned;
+    spent += other.spent;
+    return *this;
+  }
+
+  MoneyState operator+(const MoneyState& other) const {
+    return MoneyState(*this) += other;
+  }
+
+  MoneyState operator*(double factor) const {
+    return {earned * factor, spent * factor};
+  }
+};
+
+ostream& operator<<(ostream& stream, const MoneyState& state) {
+  return stream << "{+" << state.earned << ", -" << state.spent << "}";
 }
 
 struct IndexSegment {
@@ -84,181 +113,6 @@ struct IndexSegment {
   }
 };
 
-IndexSegment IntersectSegments(IndexSegment lhs, IndexSegment rhs) {
-  const size_t left = max(lhs.left, rhs.left);
-  const size_t right = min(lhs.right, rhs.right);
-  return {left, max(left, right)};
-}
-
-bool AreSegmentsIntersected(IndexSegment lhs, IndexSegment rhs) {
-  return !(lhs.right <= rhs.left || rhs.right <= lhs.left);
-}
-
-
-struct BulkMoneyAdder {
-  double delta = 0.0;
-};
-
-constexpr uint8_t TAX_PERCENTAGE = 13;
-
-struct BulkTaxApplier {
-  static constexpr double FACTOR = 1.0 - TAX_PERCENTAGE / 100.0;
-  uint32_t count = 0;
-
-  double ComputeFactor() const {
-    return pow(FACTOR, count);
-  }
-};
-
-class BulkLinearUpdater {
-public:
-  BulkLinearUpdater() = default;
-
-  BulkLinearUpdater(const BulkMoneyAdder& add)
-      : add_(add)
-  {}
-
-  BulkLinearUpdater(const BulkTaxApplier& tax)
-      : tax_(tax)
-  {}
-
-  void CombineWith(const BulkLinearUpdater& other) {
-    tax_.count += other.tax_.count;
-    add_.delta = add_.delta * other.tax_.ComputeFactor() + other.add_.delta;
-  }
-
-  double Collapse(double origin, IndexSegment segment) const {
-    return origin * tax_.ComputeFactor() + add_.delta * segment.length();
-  }
-
-private:
-  // apply tax first, then add
-  BulkTaxApplier tax_;
-  BulkMoneyAdder add_;
-};
-
-
-template <typename Data, typename BulkOperation>
-class SummingSegmentTree {
-public:
-  SummingSegmentTree(size_t size) : root_(Build({0, size})) {}
-
-  Data ComputeSum(IndexSegment segment) const {
-    return this->TraverseWithQuery(root_, segment, ComputeSumVisitor{});
-  }
-
-  void AddBulkOperation(IndexSegment segment, const BulkOperation& operation) {
-    this->TraverseWithQuery(root_, segment, AddBulkOperationVisitor{operation});
-  }
-
-private:
-  struct Node;
-  using NodeHolder = unique_ptr<Node>;
-
-  struct Node {
-    NodeHolder left;
-    NodeHolder right;
-    IndexSegment segment;
-    Data data;
-    BulkOperation postponed_bulk_operation;
-  };
-
-  NodeHolder root_;
-
-  static NodeHolder Build(IndexSegment segment) {
-    if (segment.empty()) {
-      return nullptr;
-    } else if (segment.length() == 1) {
-      return make_unique<Node>(Node{
-        .left = nullptr,
-        .right = nullptr,
-        .segment = segment,
-      });
-    } else {
-      const size_t middle = segment.left + segment.length() / 2;
-      return make_unique<Node>(Node{
-        .left = Build({segment.left, middle}),
-        .right = Build({middle, segment.right}),
-        .segment = segment,
-      });
-    }
-  }
-
-  template <typename Visitor>
-  static typename Visitor::ResultType TraverseWithQuery(const NodeHolder& node, IndexSegment query_segment, Visitor visitor) {
-    if (!node || !AreSegmentsIntersected(node->segment, query_segment)) {
-      return visitor.ProcessEmpty(node);
-    } else {
-      PropagateBulkOperation(node);
-      if (query_segment.Contains(node->segment)) {
-        return visitor.ProcessFull(node);
-      } else {
-        if constexpr (is_void_v<typename Visitor::ResultType>) {
-          TraverseWithQuery(node->left, query_segment, visitor);
-          TraverseWithQuery(node->right, query_segment, visitor);
-          return visitor.ProcessPartial(node, query_segment);
-        } else {
-          return visitor.ProcessPartial(
-              node, query_segment,
-              TraverseWithQuery(node->left, query_segment, visitor),
-              TraverseWithQuery(node->right, query_segment, visitor)
-          );
-        }
-      }
-    }
-  }
-
-  class ComputeSumVisitor {
-  public:
-    using ResultType = Data;
-
-    Data ProcessEmpty(const NodeHolder&) const {
-      return {};
-    }
-
-    Data ProcessFull(const NodeHolder& node) const {
-      return node->data;
-    }
-
-    Data ProcessPartial(const NodeHolder&, IndexSegment, const Data& left_result, const Data& right_result) const {
-      return left_result + right_result;
-    }
-  };
-
-  class AddBulkOperationVisitor {
-  public:
-    using ResultType = void;
-
-    explicit AddBulkOperationVisitor(const BulkOperation& operation)
-        : operation_(operation)
-    {}
-
-    void ProcessEmpty(const NodeHolder&) const {}
-
-    void ProcessFull(const NodeHolder& node) const {
-      node->postponed_bulk_operation.CombineWith(operation_);
-      node->data = operation_.Collapse(node->data, node->segment);
-    }
-
-    void ProcessPartial(const NodeHolder& node, IndexSegment) const {
-      node->data = (node->left ? node->left->data : Data()) + (node->right ? node->right->data : Data());
-    }
-
-  private:
-    const BulkOperation& operation_;
-  };
-
-  static void PropagateBulkOperation(const NodeHolder& node) {
-    for (auto* child_ptr : {node->left.get(), node->right.get()}) {
-      if (child_ptr) {
-        child_ptr->postponed_bulk_operation.CombineWith(node->postponed_bulk_operation);
-        child_ptr->data = node->postponed_bulk_operation.Collapse(child_ptr->data, child_ptr->segment);
-      }
-    }
-    node->postponed_bulk_operation = BulkOperation();
-  }
-};
-
 
 class Date {
 public:
@@ -273,15 +127,16 @@ public:
 
   // Weird legacy, can't wait for std::chrono::year_month_day
   time_t AsTimestamp() const {
-    std::tm t;
-    t.tm_sec  = 0;
-    t.tm_min  = 0;
-    t.tm_hour = 0;
-    t.tm_mday = day_;
-    t.tm_mon  = month_ - 1;
-    t.tm_year = year_ - 1900;
-    t.tm_isdst = 0;
-    return mktime(&t);
+    std::tm t{
+      .tm_sec  = 0,
+      .tm_min  = 0,
+      .tm_hour = 0,
+      .tm_mday = day_,
+      .tm_mon  = month_ - 1,
+      .tm_year = year_ - 1900,
+      .tm_isdst = 0,
+    };
+    return std::mktime(&t);
   }
 
 private:
@@ -290,8 +145,7 @@ private:
   int day_;
 
   Date(int year, int month, int day)
-      : year_(year), month_(month), day_(day)
-  {}
+    : year_(year), month_(month), day_(day) {}
 };
 
 int ComputeDaysDiff(const Date& date_to, const Date& date_from) {
@@ -314,9 +168,17 @@ IndexSegment MakeDateSegment(const Date& date_from, const Date& date_to) {
 }
 
 
-class BudgetManager : public SummingSegmentTree<double, BulkLinearUpdater> {
+class BudgetManager : public vector<MoneyState> {
 public:
-    BudgetManager() : SummingSegmentTree(DAY_COUNT) {}
+  BudgetManager() : vector(DAY_COUNT) {}
+  auto MakeDateRange(const Date& date_from, const Date& date_to) const {
+    const auto segment = MakeDateSegment(date_from, date_to);
+    return Range(begin() + segment.left, begin() + segment.right);
+  }
+  auto MakeDateRange(const Date& date_from, const Date& date_to) {
+    const auto segment = MakeDateSegment(date_from, date_to);
+    return Range(begin() + segment.left, begin() + segment.right);
+  }
 };
 
 
@@ -333,15 +195,14 @@ struct Request {
   Request(Type type) : type(type) {}
   static RequestHolder Create(Type type);
   virtual void ParseFrom(string_view input) = 0;
-  virtual ~Request() = default;
 
   const Type type;
 };
 
 const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
-    {"ComputeIncome", Request::Type::COMPUTE_INCOME},
-    {"Earn", Request::Type::EARN},
-    {"PayTax", Request::Type::PAY_TAX},
+        {"ComputeIncome", Request::Type::COMPUTE_INCOME},
+        {"Earn", Request::Type::EARN},
+        {"PayTax", Request::Type::PAY_TAX},
 };
 
 template <typename ResultType>
@@ -363,7 +224,8 @@ struct ComputeIncomeRequest : ReadRequest<double> {
   }
 
   double Process(const BudgetManager& manager) const override {
-    return manager.ComputeSum(MakeDateSegment(date_from, date_to));
+    const auto range = manager.MakeDateRange(date_from, date_to);
+    return accumulate(begin(range), end(range), MoneyState{}).ComputeIncome();
   }
 
   Date date_from = START_DATE;
@@ -379,9 +241,11 @@ struct EarnRequest : ModifyRequest {
   }
 
   void Process(BudgetManager& manager) const override {
-    const auto date_segment = MakeDateSegment(date_from, date_to);
-    const double daily_income = income * 1.0 / date_segment.length();
-    manager.AddBulkOperation(date_segment, BulkMoneyAdder{daily_income});
+    const auto date_range = manager.MakeDateRange(date_from, date_to);
+    const double daily_income = income * 1.0 / size(date_range);
+    for (auto& money : date_range) {
+      money.earned += daily_income;
+    }
   }
 
   Date date_from = START_DATE;
@@ -389,15 +253,19 @@ struct EarnRequest : ModifyRequest {
   size_t income = 0;
 };
 
+constexpr uint8_t TAX_PERCENTAGE = 13;
+
 struct PayTaxRequest : ModifyRequest {
   PayTaxRequest() : ModifyRequest(Type::PAY_TAX) {}
   void ParseFrom(string_view input) override {
     date_from = Date::FromString(ReadToken(input));
-    date_to = Date::FromString(input);
+    date_to = Date::FromString(ReadToken(input));
   }
 
   void Process(BudgetManager& manager) const override {
-    manager.AddBulkOperation(MakeDateSegment(date_from, date_to), BulkTaxApplier{1});
+    for (auto& money : manager.MakeDateRange(date_from, date_to)) {
+      money.earned *= 1 - TAX_PERCENTAGE / 100.0;
+    }
   }
 
   Date date_from = START_DATE;
@@ -428,7 +296,7 @@ Number ReadNumberOnLine(istream& stream) {
 
 optional<Request::Type> ConvertRequestTypeFromString(string_view type_str) {
   if (const auto it = STR_TO_REQUEST_TYPE.find(type_str);
-      it != STR_TO_REQUEST_TYPE.end()) {
+  it != STR_TO_REQUEST_TYPE.end()) {
     return it->second;
   } else {
     return nullopt;
@@ -483,6 +351,7 @@ void PrintResponses(const vector<double>& responses, ostream& stream = cout) {
     stream << response << endl;
   }
 }
+
 
 int main() {
   cout.precision(25);
