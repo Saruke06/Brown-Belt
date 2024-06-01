@@ -18,15 +18,17 @@ struct Bus {
     std::vector<Stop> stops;
 };
 
+
+
 class TransportDatabase {
 public:
     TransportDatabase() = default;
 
     void BuildBase(std::istream& input = std::cin) {
-        const size_t updates_count = ReadNumberOnLine<size_t>(input);
-        for (size_t i = 0; i < updates_count; ++i) {
+        // To do: READREQUESTS()
+        // To do: PROCESSREQUESTS()
 
-        }
+
     }
 
 private:
