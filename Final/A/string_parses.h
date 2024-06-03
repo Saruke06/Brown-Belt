@@ -6,7 +6,6 @@
 #include <optional>
 #include <vector>
 
-
 template <typename Number>
 Number ReadNumberOnLine(std::istream& is) {
     Number result;
@@ -34,4 +33,24 @@ std::string_view ReadToken(std::string_view& s, std::string_view delimeter = " "
     const auto [lhs, rhs] = SplitTwo(s, delimeter);
     s = rhs;
     return lhs;
+}
+
+double ConvertToDouble(std::string_view str) {
+    size_t pos;
+    const double result = std::stod(std::string(str), &pos);
+    if (pos != str.length()) {
+        std::stringstream error;
+        error << "string " << str << " contains " << (str.length() - pos) << " trailing chars";
+        throw std::invalid_argument(error.str());
+    }
+    return result;
+}
+
+template <typename Number>
+void ValidateBounds(Number value_to_check, Number min_value, Number max_value) {
+    if (value_to_check <= min_value || value_to_check >= max_value) {
+        std::stringstream error;
+        error << value_to_check << " is out of bounds [" << min_value << ", " << max_value << "]";
+        throw std::out_of_range(error.str());
+    }
 }

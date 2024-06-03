@@ -10,8 +10,9 @@ using RequestHolder = std::unique_ptr<Request>;
 
 struct Request {
     enum class Type {
-        STOP,
-        BUS
+        ADD_STOP,
+        ADD_BUS,
+        OUT_BUS
     };
 
     Request(Type type) : type(type) {}
@@ -24,31 +25,39 @@ struct Request {
 
 struct ModifyRequest : Request {
     using Request::Request;
-    virtual void Process(const TransportDatabase& db) const = 0;
+    virtual void Process(TransportDatabase& db) const = 0;
 };
 
 struct AddBusRequest : ModifyRequest {
-    AddBusRequest() : ModifyRequest(Type::BUS) {}
+    AddBusRequest() : ModifyRequest(Type::ADD_BUS) {}
 
     void ParseFrom(std::string_view input) override {
-        // BUS 256
+        bus_number = std::string(ReadToken(input, ": "));
+        stops = ParseStops(input);
     }
 
     void Process(TransportDatabase& db) const override {
-        // db.AddBus();
+        db.AddBus(std::move(bus_number), std::move(stops));
     }
+
+    std::string bus_number;
+    std::vector<Stop> stops;
 };
 
 struct AddStopRequest : ModifyRequest {
-    AddStopRequest() : ModifyRequest(Type::STOP) {}
+    AddStopRequest() : ModifyRequest(Type::ADD_STOP) {}
 
     void ParseFrom(std::string_view input) override {
-        // STOP 256
+        // input = "X: latitude, longitude"
+        stop = Stop::ParseFrom(input);
     }
 
     void Process(TransportDatabase& db) const override {
-        // db.AddStop();
+        // Add stop to db
+        db.AddStop(std::move(stop));
     }
+
+    Stop stop;
 };
 
 template <typename ResultType>
@@ -58,13 +67,30 @@ struct ReadRequest : Request {
 };
 
 struct BusRequest : ReadRequest<std::string> {
-    BusRequest() : ReadRequest(Type::BUS) {}
+    BusRequest() : ReadRequest(Type::OUT_BUS) {}
 
     void ParseFrom(std::string_view input) override {
-        // BUS 256
+        // input = "X"
+        bus_number = std::string(input);
     }
 
     std::string Process(const TransportDatabase& db) const override {
         // return db.GetBus();
+        return db.GetBusInfo(bus_number);
     }
+
+    std::string bus_number;
 };
+
+RequestHolder Request::Create(Request::Type type) {
+    switch (type) {
+        case Type::ADD_STOP:
+            return std::make_unique<AddStopRequest>();
+        case Type::ADD_BUS:
+            return std::make_unique<AddBusRequest>();
+        case Type::OUT_BUS:
+            return std::make_unique<BusRequest>();
+        default:
+            return nullptr;
+    }
+}
