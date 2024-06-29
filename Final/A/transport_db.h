@@ -9,6 +9,8 @@
 
 #include "string_parses.h"
 
+#define prent(x) (std::cerr << #x << " = " << x << '\n')
+
 const double PI = 3.1415926535;
 const double EARTH_RADIUS = 6'371'000;
 
@@ -92,10 +94,34 @@ public:
     }
 
     void AddBus(const std::string& bus_number, const std::vector<Stop>& stops_on_route) {
-        buses[bus_number] = Bus(bus_number, stops_on_route);
         for (const auto& stop : stops_on_route) {
             AddStop(stop);
         }
+        buses[bus_number] = Bus(move(bus_number), move(stops_on_route));
+    }
+
+    std::string GetStop(const std::string& stop_name) const {
+        std::stringstream res;
+        res.precision(6);
+        auto it = map_of_stops.find(stop_name);
+        if (it != map_of_stops.end()) {
+            res << "Stop " << stop_name << " exists with latitude ";
+            if (it->second.GetLatitude().has_value()) {
+                res << *(it->second.GetLatitude());
+            } else {
+                res << "unknown";
+            }
+            res << " and longitude ";
+            if (it->second.GetLongitude().has_value()) {
+                res << *(it->second.GetLongitude());
+            } else {
+                res << "unknown";
+            }
+            res << std::endl;
+        } else {
+            res << "NO stop " << stop_name << " in the DB" << std::endl;
+        }
+        return res.str();
     }
 
     std::string GetBusInfo(const std::string& bus_number) const {
@@ -114,29 +140,84 @@ public:
                 unique_stops.insert(stop.GetName());
             }
             ss << unique_stops.size() << " unique stops, ";
-            double route_length = 0;
+            double route_length = 0.;
             for (size_t i = 1; i < route.size(); ++i) {
-                // route_length += ComputeDistance(route[i - 1], route[i]);
+                route_length += ComputeDistance(route[i - 1], route[i]);
             }
             ss << route_length << " route length";
         }
         return ss.str();
     }
 
-private:
-    std::unordered_map<std::string, Bus> buses;
-    std::unordered_map<std::string, Stop> map_of_stops;
+    static double ComputeDistance(const Stop& lhs, const Stop& rhs) {
+        if (!lhs.GetLatitude()) {
+            std::cerr << "NO lhs Latitude" << std::endl;
+        } else {
+            std::cerr << "lhs Latitude seems fine" << std::endl;
+        }
+        if (!lhs.GetLongitude()) {
+            std::cerr << "NO lhs Longitude" << std::endl;
+        } else {
+            std::cerr << "lhs Longtitude seems fine" << std::endl;
+        }
+        if (!rhs.GetLatitude()) {
+            std::cerr << "NO rhs Latitude" << std::endl;
+        } else {
+            std::cerr << "rhs Latitude seems fine" << std::endl;
+        }
+        if (!rhs.GetLongitude()) {
+            std::cerr << "NO rhs Longitude" << std::endl;
+        } else {
+            std::cerr << "rhs Longtitude seems fine" << std::endl;
+        }
 
-    double ComputeDistance(const Stop& lhs, const Stop& rhs) const {
-        double lhs_lat = *lhs.GetLatitude() * PI / 180;
-        double rhs_lat = *rhs.GetLatitude() * PI / 180;
-        double lhs_lon = *lhs.GetLongitude() * PI / 180;
-        double rhs_lon = *rhs.GetLongitude() * PI / 180;
+        double lhs_lat = *lhs.GetLatitude() * PI / 180.0;
+        double rhs_lat = *rhs.GetLatitude() * PI / 180.0;
+        double lhs_lon = *lhs.GetLongitude() * PI / 180.0;
+        double rhs_lon = *rhs.GetLongitude() * PI / 180.0;
+
+        prent(lhs_lat);
+        prent(sin(lhs_lat));
+        prent(cos(lhs_lat));
+        prent(rhs_lat);
+        prent(sin(rhs_lat));
+        prent(cos(rhs_lat));
+        prent(lhs_lon);
+        prent(sin(lhs_lon));
+        prent(cos(lhs_lon));
+        prent(rhs_lon);
+        prent(sin(rhs_lon));
+        prent(cos(rhs_lon));
+
+        double SinSin = sin(lhs_lat) * sin(rhs_lat);
+        double CosCos = cos(lhs_lat) * cos(rhs_lat);
+        double Cos = cos(abs(lhs_lon - rhs_lon));
+        double CosCosCos = CosCos * Cos;
+        double Acos = acos(SinSin + CosCosCos);
+
+        prent(SinSin);
+        prent(CosCos);
+        prent(Cos);
+        prent(CosCosCos);
+        prent(Acos);
+
+        double should = Acos * EARTH_RADIUS;
+
+        double ret = acos(sin(lhs_lat) * sin(rhs_lat) + 
+                    cos(lhs_lat) * cos(rhs_lat) *
+                    cos(abs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
+
+        prent(should);
+        prent(ret);
 
         return acos(sin(lhs_lat) * sin(rhs_lat) + 
                     cos(lhs_lat) * cos(rhs_lat) *
-                    cos(abs(lhs_lon - rhs_lon)) ) * EARTH_RADIUS;
+                    cos(abs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
     }
+
+private:
+    std::unordered_map<std::string, Bus> buses;
+    std::unordered_map<std::string, Stop> map_of_stops;
 };
 
 std::vector<Stop> ParseStops(std::string_view input) {

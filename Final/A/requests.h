@@ -94,3 +94,80 @@ RequestHolder Request::Create(Request::Type type) {
             return nullptr;
     }
 }
+
+std::optional<Request::Type> ConvertRequestTypeFromString(std::string_view type_str, bool is_add_request) {
+    if (is_add_request) {
+        if (type_str == "Bus") {
+            return Request::Type::ADD_BUS;
+        } else if (type_str == "Stop") {
+            return Request::Type::ADD_STOP;
+        }
+    } else {
+        if (type_str == "Bus") {
+            return Request::Type::OUT_BUS;
+        }
+    }
+    return std::nullopt;
+}
+
+RequestHolder ParseRequest(std::string_view request_str) {
+    bool is_add_request = request_str.find(":") != std::string::npos;
+    const auto request_type = ConvertRequestTypeFromString(ReadToken(request_str), is_add_request);
+    if (!request_type) {
+        return nullptr;
+    }
+
+    RequestHolder request = Request::Create(*request_type);
+    if (request) {
+        request->ParseFrom(request_str);
+    }
+    return request;
+}
+
+std::vector<RequestHolder> ReadRequests(std::istream& input = std::cin) {
+    const size_t request_count = ReadNumberOnLine<size_t>(input);
+    std::vector<RequestHolder> updates;
+    updates.reserve(request_count);
+
+    for (size_t i = 0; i < request_count; ++i) {
+        std::string request_str;
+        getline(input, request_str);
+        if (auto request = ParseRequest(request_str)) {
+            updates.push_back(std::move(request));
+        }
+    }
+    return updates;
+}
+
+void ProcessModifyRequests(TransportDatabase* db = nullptr, const std::vector<RequestHolder>& requests = {}) {
+    if (!db) {
+        throw std::invalid_argument("db is nullptr");
+    }
+    for (const auto& request_holder : requests) {
+        const auto& request = static_cast<const ModifyRequest&>(*request_holder);
+        request.Process(*db);
+    }
+}
+
+std::vector<std::string> ProcessRequests(const TransportDatabase& db, const std::vector<RequestHolder>& requests) {
+    std::vector<std::string> responses;
+
+    for (const auto& request_holder : requests) {
+        if (request_holder->type == Request::Type::OUT_BUS) {
+            const auto& request = static_cast<const BusRequest&>(*request_holder);
+            responses.push_back(request.Process(db));
+        }
+        // } else {
+        //     const auto& request = static_cast<const ModifyRequest&>(*request_holder);
+        //     request.Process(db);
+        // }
+    }
+
+    return responses;
+}
+
+void PrintResponses(const std::vector<std::string>& responses, std::ostream& output = std::cout) {
+    for (const std::string& response : responses) {
+        output << response << '\n';
+    }
+}
