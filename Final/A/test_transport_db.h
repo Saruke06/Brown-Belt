@@ -45,11 +45,9 @@ void TestAddStopDB() {
     ASSERT_EQUAL(expected, stop_info);
 }
 
+void TestAddBusRouteDB() {
 // TODO: В аутпуте TestAddStop 4 знака после точки, а должно быть 6
 // TODO: Написать Тест для добавлния Автобуса и координат к его остановкам
-
-void TestAddBusRouteDB() {
-    
 }
 
 void TestAllTransportDB() {
