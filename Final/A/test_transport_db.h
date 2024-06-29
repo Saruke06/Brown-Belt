@@ -27,7 +27,7 @@ void TestComputeDistance() {
     //std::cerr << distance1 << ' ' << distance2 << std::endl;
 }
 
-void TestAddStop() {
+void TestAddStopDB() {
     TransportDatabase db;
     // Add one stop to db and check if it exists
     auto request_holder = ParseRequest("Stop Tolstopaltsevo: 55.611087, 37.20829");
@@ -41,14 +41,19 @@ void TestAddStop() {
     }
 
     std::string stop_info = db.GetStop("Tolstopaltsevo");
-    std::cout << stop_info << std::endl;
+    const std::string expected = "Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.20829";
+    ASSERT_EQUAL(expected, stop_info);
 }
 
 // TODO: В аутпуте TestAddStop 4 знака после точки, а должно быть 6
 // TODO: Написать Тест для добавлния Автобуса и координат к его остановкам
 
+void TestAddBusRouteDB() {
+    
+}
+
 void TestAllTransportDB() {
     TestRunner tr;
     // RUN_TEST(tr, TestComputeDistance);
-    RUN_TEST(tr, TestAddStop);
+    RUN_TEST(tr, TestAddStopDB);
 }
