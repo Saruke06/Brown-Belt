@@ -31,6 +31,11 @@ void TestReadToken() {
 void TestConvertToDouble() {
     std::string_view s = "3.14";
     ASSERT_EQUAL(ConvertToDouble(s), 3.14);
+    s = "55.611087, 37.20829";
+    const double latitude = ConvertToDouble(ReadToken(s, ", "));
+    const double longitude = ConvertToDouble(s);
+    ASSERT_EQUAL(latitude, 55.611087);
+    ASSERT_EQUAL(longitude, 37.20829);
 }
 
 void TestAllStringParses() {

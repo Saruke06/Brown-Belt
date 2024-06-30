@@ -1,11 +1,13 @@
 #pragma once
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <cmath>
+#include <memory>
 
 #include "string_parses.h"
 
@@ -62,7 +64,10 @@ class Bus {
 public:
     Bus() = default;
     Bus(std::string number, std::vector<Stop> stops) 
-        : bus_number(number), route(stops) {}
+        : bus_number(number) {
+            for (auto& stop : stops)
+                route.push_back(std::move(stop));
+        }
 
     std::vector<Stop> GetRoute() const {
         return route;
@@ -102,7 +107,7 @@ public:
 
     std::string GetStop(const std::string& stop_name) const {
         std::stringstream res;
-        res.precision(6);
+        res << std::fixed << std::setprecision(6);
         auto it = map_of_stops.find(stop_name);
         if (it != map_of_stops.end()) {
             res << "Stop " << stop_name << " exists with latitude ";
@@ -117,9 +122,8 @@ public:
             } else {
                 res << "unknown";
             }
-            res << std::endl;
         } else {
-            res << "NO stop " << stop_name << " in the DB" << std::endl;
+            res << "NO stop " << stop_name << " in the DB";
         }
         return res.str();
     }
@@ -127,7 +131,6 @@ public:
     std::string GetBusInfo(const std::string& bus_number) const {
         // output = "Bus X: R stops on route, U unique stops, L route length"
         std::stringstream ss;
-        ss.precision(6);
         ss << "Bus " << bus_number << ": ";
 
         if (buses.count(bus_number) == 0) {
@@ -142,7 +145,9 @@ public:
             ss << unique_stops.size() << " unique stops, ";
             double route_length = 0.;
             for (size_t i = 1; i < route.size(); ++i) {
-                route_length += ComputeDistance(route[i - 1], route[i]);
+                std::string stop1_name = route[i - 1].GetName();
+                std::string stop2_name = route[i].GetName();
+                route_length += ComputeDistance(map_of_stops.at(stop1_name), map_of_stops.at(stop2_name));
             }
             ss << route_length << " route length";
         }
@@ -150,25 +155,8 @@ public:
     }
 
     static double ComputeDistance(const Stop& lhs, const Stop& rhs) {
-        if (!lhs.GetLatitude()) {
-            std::cerr << "NO lhs Latitude" << std::endl;
-        } else {
-            std::cerr << "lhs Latitude seems fine" << std::endl;
-        }
-        if (!lhs.GetLongitude()) {
-            std::cerr << "NO lhs Longitude" << std::endl;
-        } else {
-            std::cerr << "lhs Longtitude seems fine" << std::endl;
-        }
-        if (!rhs.GetLatitude()) {
-            std::cerr << "NO rhs Latitude" << std::endl;
-        } else {
-            std::cerr << "rhs Latitude seems fine" << std::endl;
-        }
-        if (!rhs.GetLongitude()) {
-            std::cerr << "NO rhs Longitude" << std::endl;
-        } else {
-            std::cerr << "rhs Longtitude seems fine" << std::endl;
+        if (!lhs.GetLatitude() || !lhs.GetLongitude() || !rhs.GetLatitude() || !rhs.GetLongitude()) {
+            std::cerr << "NO coordinates" << std::endl;
         }
 
         double lhs_lat = *lhs.GetLatitude() * PI / 180.0;
@@ -176,39 +164,39 @@ public:
         double lhs_lon = *lhs.GetLongitude() * PI / 180.0;
         double rhs_lon = *rhs.GetLongitude() * PI / 180.0;
 
-        prent(lhs_lat);
-        prent(sin(lhs_lat));
-        prent(cos(lhs_lat));
-        prent(rhs_lat);
-        prent(sin(rhs_lat));
-        prent(cos(rhs_lat));
-        prent(lhs_lon);
-        prent(sin(lhs_lon));
-        prent(cos(lhs_lon));
-        prent(rhs_lon);
-        prent(sin(rhs_lon));
-        prent(cos(rhs_lon));
+        // prent(lhs_lat);
+        // prent(sin(lhs_lat));
+        // prent(cos(lhs_lat));
+        // prent(rhs_lat);
+        // prent(sin(rhs_lat));
+        // prent(cos(rhs_lat));
+        // prent(lhs_lon);
+        // prent(sin(lhs_lon));
+        // prent(cos(lhs_lon));
+        // prent(rhs_lon);
+        // prent(sin(rhs_lon));
+        // prent(cos(rhs_lon));
 
-        double SinSin = sin(lhs_lat) * sin(rhs_lat);
-        double CosCos = cos(lhs_lat) * cos(rhs_lat);
-        double Cos = cos(abs(lhs_lon - rhs_lon));
-        double CosCosCos = CosCos * Cos;
-        double Acos = acos(SinSin + CosCosCos);
+        // double SinSin = sin(lhs_lat) * sin(rhs_lat);
+        // double CosCos = cos(lhs_lat) * cos(rhs_lat);
+        // double Cos = cos(abs(lhs_lon - rhs_lon));
+        // double CosCosCos = CosCos * Cos;
+        // double Acos = acos(SinSin + CosCosCos);
 
-        prent(SinSin);
-        prent(CosCos);
-        prent(Cos);
-        prent(CosCosCos);
-        prent(Acos);
+        // prent(SinSin);
+        // prent(CosCos);
+        // prent(Cos);
+        // prent(CosCosCos);
+        // prent(Acos);
 
-        double should = Acos * EARTH_RADIUS;
+        // double should = Acos * EARTH_RADIUS;
 
-        double ret = acos(sin(lhs_lat) * sin(rhs_lat) + 
-                    cos(lhs_lat) * cos(rhs_lat) *
-                    cos(abs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
+        // double ret = acos(sin(lhs_lat) * sin(rhs_lat) + 
+        //             cos(lhs_lat) * cos(rhs_lat) *
+        //             cos(abs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
 
-        prent(should);
-        prent(ret);
+        // prent(should);
+        // prent(ret);
 
         return acos(sin(lhs_lat) * sin(rhs_lat) + 
                     cos(lhs_lat) * cos(rhs_lat) *
