@@ -41,7 +41,7 @@ struct AddBusRequest : ModifyRequest {
     }
 
     std::string bus_number;
-    std::vector<Stop> stops;
+    std::vector<std::string> stops;
 };
 
 struct AddStopRequest : ModifyRequest {

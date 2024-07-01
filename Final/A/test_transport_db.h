@@ -4,27 +4,37 @@
 #include "requests.h"
 #include "../../test_runner.h"
 
-void TestComputeDistance() {
-    Stop Tolstopaltsevo("Tolstopaltsevo");
-    Tolstopaltsevo.SetLatitude(55.611087); // rad = 0.9705965687 sin = 0.8252228066 cos = 0.5648073296
-    Tolstopaltsevo.SetLongitude(37.20829); // rad = 0.6494071695 sin = 0.6047143567 cos = 0.7964424316
+void TestGetBus() {
+    std::stringstream is1(R"(4\
+Stop Tolstopaltsevo: 55.611087, 37.20829
+Stop Marushkino: 55.595884, 37.209755
+Bus 750: Tolstopaltsevo - Marushkino - Rasskazovka
+Stop Rasskazovka: 55.632761, 37.333324)");
+    std::stringstream is2(R"(1\
+Bus 750)");
+    std::ostringstream os;
+    TransportDatabase db;
+    const auto modify_requests = ReadRequests(is1);
+    ProcessModifyRequests(&db, modify_requests);
+    // Check if  all stops are added correctly
+    std::string stop_info = db.GetStopInfo("Tolstopaltsevo");
+    const std::string expected = "Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290";
+    ASSERT_EQUAL(expected, stop_info);
 
-    Stop Marushkino("Marushkino");
-    Marushkino.SetLatitude(55.595884); // rad = 0.9703312263 sin = 0.8250729102 cos = 0.5650262763
-    Marushkino.SetLongitude(37.209755); // rad = 0.6494327385 sin = 0.6047347208 cos = 0.7964269693
+    stop_info = db.GetStopInfo("Marushkino");
+    const std::string expected2 = "Stop Marushkino exists with latitude 55.595884 and longitude 37.209755";
+    ASSERT_EQUAL(expected2, stop_info);
 
-    Stop Moscow("Moscow");
-    Moscow.SetLatitude(55.751244);
-    Moscow.SetLongitude(37.618423);
+    stop_info = db.GetStopInfo("Rasskazovka");
+    const std::string expected3 = "Stop Rasskazovka exists with latitude 55.632761 and longitude 37.333324";
+    ASSERT_EQUAL(expected3, stop_info);
 
-    Stop SaintPetersburg("Saint Petersburg");
-    SaintPetersburg.SetLatitude(59.93863);
-    SaintPetersburg.SetLongitude(30.31413);
 
-    double distance1 = TransportDatabase::ComputeDistance(Tolstopaltsevo, Marushkino);
-    // double distance2 = TransportDatabase::ComputeDistance(Moscow, SaintPetersburg);
-
-    //std::cerr << distance1 << ' ' << distance2 << std::endl;
+    const auto read_requests = ReadRequests(is2);
+    const auto responses = ProcessRequests(db, read_requests);
+    PrintResponses(responses, os);
+    const std::string expected4 = "Bus 750: 5 stops on route, 3 unique stops, 20939.5 route length\n";
+    ASSERT_EQUAL(os.str(), expected4);
 }
 
 void TestAddStopDB() {
@@ -35,7 +45,7 @@ void TestAddStopDB() {
 
     request.Process(db);
 
-    std::string stop_info = db.GetStop("Tolstopaltsevo");
+    std::string stop_info = db.GetStopInfo("Tolstopaltsevo");
     const std::string expected = "Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290";
     ASSERT_EQUAL(expected, stop_info);
 }
@@ -60,11 +70,11 @@ void TestAddBusRouteDB() {
     request2.Process(db);
 
     // 3.
-    std::string stop_info = db.GetStop("Tolstopaltsevo");
+    std::string stop_info = db.GetStopInfo("Tolstopaltsevo");
     const std::string expected = "Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290";
     ASSERT_EQUAL(expected, stop_info);
 
-    stop_info = db.GetStop("Marushkino");
+    stop_info = db.GetStopInfo("Marushkino");
     const std::string expected2 = "Stop Marushkino exists with latitude unknown and longitude unknown";
     ASSERT_EQUAL(expected2, stop_info);
 
@@ -74,15 +84,15 @@ void TestAddBusRouteDB() {
     request3.Process(db);
 
     // 5.
-    stop_info = db.GetStop("Tolstopaltsevo");
+    stop_info = db.GetStopInfo("Tolstopaltsevo");
     ASSERT_EQUAL(expected, stop_info);
 
-    stop_info = db.GetStop("Marushkino");
+    stop_info = db.GetStopInfo("Marushkino");
     const std::string expected3 = "Stop Marushkino exists with latitude 55.595884 and longitude 37.209755";
     ASSERT_EQUAL(expected3, stop_info);
 
     // 6.
-    stop_info = db.GetStop("Rasskazovka");
+    stop_info = db.GetStopInfo("Rasskazovka");
     const std::string expected4 = "NO stop Rasskazovka in the DB";
     ASSERT_EQUAL(expected4, stop_info);
 
@@ -90,7 +100,7 @@ void TestAddBusRouteDB() {
 
 void TestAllTransportDB() {
     TestRunner tr;
-    // RUN_TEST(tr, TestComputeDistance);
+    RUN_TEST(tr, TestGetBus);
     RUN_TEST(tr, TestAddStopDB);
     RUN_TEST(tr, TestAddBusRouteDB);
 }

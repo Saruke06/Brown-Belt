@@ -18,9 +18,9 @@ void TestAddBusRequest1() {
     request->ParseFrom(input);
     ASSERT_EQUAL(request->bus_number, "256");
     ASSERT_EQUAL(request->stops.size(), 3);
-    ASSERT_EQUAL(request->stops[0].GetName(), "Tolstopaltsevo");
-    ASSERT_EQUAL(request->stops[1].GetName(), "Marushkino");
-    ASSERT_EQUAL(request->stops[2].GetName(), "Tolstopaltsevo");
+    ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(request->stops[1], "Marushkino");
+    ASSERT_EQUAL(request->stops[2], "Tolstopaltsevo");
 }
 
 void TestAddBusRequest2() {
@@ -30,10 +30,10 @@ void TestAddBusRequest2() {
 
     ASSERT_EQUAL(request->bus_number, "750");
     ASSERT_EQUAL(request->stops.size(), 4);
-    ASSERT_EQUAL(request->stops[0].GetName(), "Tolstopaltsevo");
-    ASSERT_EQUAL(request->stops[1].GetName(), "Marushkino");
-    ASSERT_EQUAL(request->stops[2].GetName(), "Rasskazovka");
-    ASSERT_EQUAL(request->stops[3].GetName(), "Tolstopaltsevo");
+    ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(request->stops[1], "Marushkino");
+    ASSERT_EQUAL(request->stops[2], "Rasskazovka");
+    ASSERT_EQUAL(request->stops[3], "Tolstopaltsevo");
 }
 
 void TestParseRequest() {
@@ -44,8 +44,8 @@ void TestParseRequest() {
     auto bus_request = static_cast<AddBusRequest*>(request.get());
     ASSERT_EQUAL(bus_request->bus_number, "256");
     ASSERT_EQUAL(bus_request->stops.size(), 3);
-    ASSERT_EQUAL(bus_request->stops[0].GetName(), "Tolstopaltsevo");
-    ASSERT_EQUAL(bus_request->stops[1].GetName(), "Marushkino");
+    ASSERT_EQUAL(bus_request->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(bus_request->stops[1], "Marushkino");
 
     // Parse bus request 2
     input = "Bus 750: Tolstopaltsevo > Marushkino > Rasskazovka > Tolstopaltsevo";
@@ -54,10 +54,10 @@ void TestParseRequest() {
     auto bus_request2 = static_cast<AddBusRequest*>(request.get());
     ASSERT_EQUAL(bus_request2->bus_number, "750");
     ASSERT_EQUAL(bus_request2->stops.size(), 4);
-    ASSERT_EQUAL(bus_request2->stops[0].GetName(), "Tolstopaltsevo");
-    ASSERT_EQUAL(bus_request2->stops[1].GetName(), "Marushkino");
-    ASSERT_EQUAL(bus_request2->stops[2].GetName(), "Rasskazovka");
-    ASSERT_EQUAL(bus_request2->stops[3].GetName(), "Tolstopaltsevo");
+    ASSERT_EQUAL(bus_request2->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(bus_request2->stops[1], "Marushkino");
+    ASSERT_EQUAL(bus_request2->stops[2], "Rasskazovka");
+    ASSERT_EQUAL(bus_request2->stops[3], "Tolstopaltsevo");
 
     // Parse stop request
     input = "Stop Tolstopaltsevo: 55.611087, 37.20829";
