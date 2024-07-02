@@ -1,0 +1,22 @@
+TestReadNumberOnLine OK
+TestSplitTwoStrict OK
+TestSplitTwo OK
+TestReadToken OK
+TestConvertToDouble OK
+TestAddStopRequest OK
+TestAddBusRequest1 OK
+TestAddBusRequest2 OK
+TestParseRequest OK
+TestReadRequests OK
+TestGetBus fail: Assertion failed: 
+Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290 != 
+Stop Tolstopaltsevo: buses 750 hint: expected != stop_info, test_transport_db.h:22
+
+TestAddStopDB fail: Assertion failed: 
+Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290 != 
+Stop Tolstopaltsevo: no buses hint: expected != stop_info, test_transport_db.h:50
+
+TestAddBusRouteDB fail: Assertion failed: 
+Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290 != 
+Stop Tolstopaltsevo: buses 256 hint: expected != stop_info, test_transport_db.h:75
+3 unit tests failed. Terminate
