@@ -145,13 +145,8 @@ public:
             ss << unique_stops.size() << " unique stops, ";
             double route_length = 0.;
             for (size_t i = 1; i < route.size(); ++i) {
-                std::cerr << GetStopInfo(route[i - 1]) << std::endl;
-                std::cerr << GetStopInfo(route[i]) << std::endl;
                 double distance = ComputeDistance(map_of_stops.at(route[i - 1]), map_of_stops.at(route[i]));
-                std::cerr << "Distance between " << route[i - 1] << " and " << route[i] << " = " << distance << std::endl;
-                std::cerr << std::endl;
                 route_length += distance;
-                //std::cerr << "i = " << i << " Total route length = " << route_length << std::endl;
             }
             ss << route_length << " route length";
         }
@@ -172,43 +167,43 @@ public:
         double lhs_lon = toRadians(*lhs.GetLongitude());
         double rhs_lon = toRadians(*rhs.GetLongitude());
 
-        prent(*lhs.GetLatitude());
-        prent(lhs_lat);
-        prent(sin(lhs_lat));
-        prent(cos(lhs_lat));
-        prent(*rhs.GetLatitude());
-        prent(rhs_lat);
-        prent(sin(rhs_lat));
-        prent(cos(rhs_lat));
-        prent(*lhs.GetLongitude());
-        prent(lhs_lon);
-        prent(sin(lhs_lon));
-        prent(cos(lhs_lon));
-        prent(*rhs.GetLongitude());
-        prent(rhs_lon);
-        prent(sin(rhs_lon));
-        prent(cos(rhs_lon));
+        // prent(*lhs.GetLatitude());
+        // prent(lhs_lat);
+        // prent(sin(lhs_lat));
+        // prent(cos(lhs_lat));
+        // prent(*rhs.GetLatitude());
+        // prent(rhs_lat);
+        // prent(sin(rhs_lat));
+        // prent(cos(rhs_lat));
+        // prent(*lhs.GetLongitude());
+        // prent(lhs_lon);
+        // prent(sin(lhs_lon));
+        // prent(cos(lhs_lon));
+        // prent(*rhs.GetLongitude());
+        // prent(rhs_lon);
+        // prent(sin(rhs_lon));
+        // prent(cos(rhs_lon));
 
-        double SinSin = sin(lhs_lat) * sin(rhs_lat);
-        double CosCos = cos(lhs_lat) * cos(rhs_lat);
-        double Cos = cos(abs(lhs_lon - rhs_lon));
-        double CosCosCos = CosCos * Cos;
-        double Acos = acos(SinSin + CosCosCos);
+        // double SinSin = sin(lhs_lat) * sin(rhs_lat);
+        // double CosCos = cos(lhs_lat) * cos(rhs_lat);
+        // double Cos = cos(abs(lhs_lon - rhs_lon));
+        // double CosCosCos = CosCos * Cos;
+        // double Acos = acos(SinSin + CosCosCos);
 
-        prent(SinSin);
-        prent(CosCos);
-        prent(Cos);
-        prent(CosCosCos);
-        prent(Acos);
+        // prent(SinSin);
+        // prent(CosCos);
+        // prent(Cos);
+        // prent(CosCosCos);
+        // prent(Acos);
 
-        double should = Acos * EARTH_RADIUS;
+        // double should = Acos * EARTH_RADIUS;
 
-        double ret = acos(sin(lhs_lat) * sin(rhs_lat) + 
-                    cos(lhs_lat) * cos(rhs_lat) *
-                    cos(abs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
+        // double ret = acos(sin(lhs_lat) * sin(rhs_lat) + 
+        //             cos(lhs_lat) * cos(rhs_lat) *
+        //             cos(abs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
 
-        prent(should);
-        prent(ret);
+        // prent(should);
+        // prent(ret);
 
         return acos(sin(lhs_lat) * sin(rhs_lat) + 
                     cos(lhs_lat) * cos(rhs_lat) *
