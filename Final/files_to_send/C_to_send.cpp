@@ -1,18 +1,79 @@
-#pragma once
-
 #include <iostream>
 #include <iomanip>
 #include <string>
 #include <sstream>
+#include <optional>
+#include <vector>
 #include <unordered_map>
-#include <unordered_set>
-#include <cmath>
 #include <memory>
 #include <set>
-#include <optional>
+#include <cmath>
+#include <unordered_set>
 
-#include "string_parses.h"
 
+//#include "string_parses.h"
+template <typename Number>
+Number ReadNumberOnLine(std::istream& is) {
+    Number result;
+    is >> result;
+    std::string dummy;
+    getline(is, dummy);
+    return result;
+}
+
+std::pair<std::string_view, std::optional<std::string_view>> SplitTwoStrict(std::string_view s, std::string_view delimeter = " ") {
+    const size_t pos = s.find(delimeter);
+    if (pos == s.npos) {
+        return {s, std::nullopt};
+    } else {
+        return {s.substr(0, pos), s.substr(pos + delimeter.length())};
+    }
+}
+
+std::pair<std::string_view, std::string_view> SplitTwo(std::string_view s, std::string_view delimeter = " ") {
+    const auto [lhs, rhs_opt] = SplitTwoStrict(s, delimeter);
+    return {lhs, rhs_opt.value_or("")};
+}
+
+std::string_view ReadToken(std::string_view& s, std::string_view delimeter = " ") {
+    const auto [lhs, rhs] = SplitTwo(s, delimeter);
+    s = rhs;
+    return lhs;
+}
+
+double ConvertToDouble(std::string_view str) {
+    size_t pos;
+    const double result = std::stod(std::string(str), &pos);
+    if (pos != str.length()) {
+        std::stringstream error;
+        error << "string " << str << " contains " << (str.length() - pos) << " trailing chars";
+        throw std::invalid_argument(error.str());
+    }
+    return result;
+}
+
+template <typename Number>
+Number ConvertToInt(std::string_view str) {
+    size_t pos;
+    const int result = std::stoi(std::string(str), &pos);
+    if (pos != str.length()) {
+        std::stringstream error;
+        error << "string " << str << " contains " << (str.length() - pos) << " trailing chars";
+        throw std::invalid_argument(error.str());
+    }
+    return result;
+}
+
+template <typename Number>
+void ValidateBounds(Number value_to_check, Number min_value, Number max_value) {
+    if (value_to_check <= min_value || value_to_check >= max_value) {
+        std::stringstream error;
+        error << value_to_check << " is out of bounds [" << min_value << ", " << max_value << "]";
+        throw std::out_of_range(error.str());
+    }
+}
+
+//#include "transport_db.h"
 const double PI = 3.1415926535;
 const double EARTH_RADIUS = 6371000;
 
@@ -295,4 +356,218 @@ std::vector<std::string> ParseStops(std::string_view input) {
     }
 
     return stops;
+}
+
+//#include "requests.h"
+struct Request;
+using RequestHolder = std::unique_ptr<Request>;
+
+struct Request {
+    enum class Type {
+        ADD_STOP,
+        ADD_BUS,
+        OUT_BUS,
+        OUT_STOP
+    };
+
+    Request(Type type) : type(type) {}
+    static RequestHolder Create(Request::Type type);
+    virtual void ParseFrom(std::string_view input) = 0;
+    virtual ~Request() = default;
+
+    const Type type;
+};
+
+struct ModifyRequest : Request {
+    using Request::Request;
+    virtual void Process(TransportDatabase& db) const = 0;
+};
+
+struct AddBusRequest : ModifyRequest {
+    AddBusRequest() : ModifyRequest(Type::ADD_BUS) {}
+
+    void ParseFrom(std::string_view input) override {
+        bus_number = std::string(ReadToken(input, ": "));
+        stops = ParseStops(input);
+    }
+
+    void Process(TransportDatabase& db) const override {
+        db.AddBus(std::move(bus_number), std::move(stops));
+    }
+
+    std::string bus_number;
+    std::vector<std::string> stops;
+};
+
+struct AddStopRequest : ModifyRequest {
+    AddStopRequest() : ModifyRequest(Type::ADD_STOP) {}
+
+    void ParseFrom(std::string_view input) override {
+        stop = Stop::ParseFrom(input);
+    }
+
+    void Process(TransportDatabase& db) const override {
+        // Add stop to db
+        db.AddStop(std::move(stop));
+    }
+
+    Stop stop;
+};
+
+template <typename ResultType>
+struct ReadRequest : Request {
+    using Request::Request;
+    virtual ResultType Process(const TransportDatabase& db) const = 0;
+};
+
+struct BusRequest : ReadRequest<std::string> {
+    BusRequest() : ReadRequest(Type::OUT_BUS) {}
+
+    void ParseFrom(std::string_view input) override {
+        // input = "X"
+        bus_number = std::string(input);
+    }
+
+    std::string Process(const TransportDatabase& db) const override {
+        // return db.GetBus();
+        return db.GetBusInfo(bus_number);
+    }
+
+    std::string bus_number;
+};
+
+struct StopRequest : ReadRequest<std::string> {
+    StopRequest() : ReadRequest(Type::OUT_STOP) {}
+
+    void ParseFrom(std::string_view input) override {
+        // input = "X"
+        stop_name = std::string(input);
+    }
+
+    std::string Process(const TransportDatabase& db) const override {
+        // return db.GetStop();
+        return db.GetStopInfo(stop_name);
+    }
+
+    std::string stop_name;
+};
+
+RequestHolder Request::Create(Request::Type type) {
+    switch (type) {
+        case Type::ADD_STOP:
+            return std::make_unique<AddStopRequest>();
+        case Type::ADD_BUS:
+            return std::make_unique<AddBusRequest>();
+        case Type::OUT_BUS:
+            return std::make_unique<BusRequest>();
+        case Type::OUT_STOP:
+            return std::make_unique<StopRequest>();
+        default:
+            return nullptr;
+    }
+}
+
+std::optional<Request::Type> ConvertRequestTypeFromString(std::string_view type_str, bool is_add_request) {
+    if (is_add_request) {
+        if (type_str == "Bus") {
+            return Request::Type::ADD_BUS;
+        } else if (type_str == "Stop") {
+            return Request::Type::ADD_STOP;
+        }
+    } else {
+        if (type_str == "Bus") {
+            return Request::Type::OUT_BUS;
+        } else if (type_str == "Stop") {
+            return Request::Type::OUT_STOP;
+        }
+    }
+    return std::nullopt;
+}
+
+RequestHolder ParseRequest(std::string_view request_str) {
+    bool is_add_request = request_str.find(":") != std::string::npos;
+    const auto request_type = ConvertRequestTypeFromString(ReadToken(request_str), is_add_request);
+    if (!request_type) {
+        return nullptr;
+    }
+
+    RequestHolder request = Request::Create(*request_type);
+    if (request) {
+        request->ParseFrom(request_str);
+    }
+    return request;
+}
+
+std::vector<RequestHolder> ReadRequests(std::istream& input = std::cin) {
+    const size_t request_count = ReadNumberOnLine<size_t>(input);
+    std::vector<RequestHolder> updates;
+    updates.reserve(request_count);
+
+    for (size_t i = 0; i < request_count; ++i) {
+        std::string request_str;
+        getline(input, request_str);
+        if (auto request = ParseRequest(request_str)) {
+            updates.push_back(std::move(request));
+        }
+    }
+    return updates;
+}
+
+void ProcessModifyRequests(TransportDatabase* db = nullptr, const std::vector<RequestHolder>& requests = {}) {
+    if (!db) {
+        throw std::invalid_argument("db is nullptr");
+    }
+    for (const auto& request_holder : requests) {
+        const auto& request = static_cast<const ModifyRequest&>(*request_holder);
+        request.Process(*db);
+    }
+}
+
+std::vector<std::string> ProcessRequests(const TransportDatabase& db, const std::vector<RequestHolder>& requests) {
+    std::vector<std::string> responses;
+
+    for (const auto& request_holder : requests) {
+        switch(request_holder->type) {
+            case Request::Type::OUT_BUS:
+            case Request::Type::OUT_STOP: {
+                const auto& request = static_cast<const ReadRequest<std::string>&>(*request_holder);
+                responses.push_back(request.Process(db));
+                break;
+            }
+            default:
+                throw std::invalid_argument("Unknown request type");
+        }
+    }
+
+    return responses;
+}
+
+void PrintResponses(const std::vector<std::string>& responses, std::ostream& output = std::cout) {
+    for (const std::string& response : responses) {
+        output << response << '\n';
+    }
+}
+
+// #include "test_string_parses.h"
+// #include "test_requests.h"
+// #include "test_transport_db.h"
+
+using namespace std;
+
+
+int main() {
+    // std::cerr << std::fixed << std::setprecision(9);
+    // std::cout << std::fixed << std::setprecision(9);
+    //TestAllStringParses();
+    //TestAllRequests();
+    //TestAllTransportDB();
+
+    TransportDatabase db;
+    const auto modify_requests = ReadRequests();
+    ProcessModifyRequests(&db, modify_requests);
+    const auto read_requests = ReadRequests();
+    const auto responses = ProcessRequests(db, read_requests);
+    PrintResponses(responses);
+
+    return 0;
 }

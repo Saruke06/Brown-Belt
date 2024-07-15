@@ -19,11 +19,12 @@ using namespace std;
 
 
 int main() {
-    std::cerr << std::fixed << std::setprecision(6);
-    std::cout << std::fixed << std::setprecision(6);
-    //TestAllStringParses();
-    //TestAllRequests();
-    TestAllTransportDB();
+    // std::cerr << std::fixed << std::setprecision(6);
+    // std::cout << std::fixed << std::setprecision(6);
+
+    // TestAllStringParses();
+    // TestAllRequests();
+    // TestAllTransportDB();
 
     TransportDatabase db;
     const auto modify_requests = ReadRequests();

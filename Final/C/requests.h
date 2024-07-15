@@ -49,7 +49,6 @@ struct AddStopRequest : ModifyRequest {
     AddStopRequest() : ModifyRequest(Type::ADD_STOP) {}
 
     void ParseFrom(std::string_view input) override {
-        // input = "X: latitude, longitude"
         stop = Stop::ParseFrom(input);
     }
 
