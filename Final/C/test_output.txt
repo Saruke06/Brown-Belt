@@ -1,22 +1,11 @@
-TestReadNumberOnLine OK
-TestSplitTwoStrict OK
-TestSplitTwo OK
-TestReadToken OK
-TestConvertToDouble OK
-TestAddStopRequest OK
-TestAddBusRequest1 OK
-TestAddBusRequest2 OK
-TestParseRequest OK
-TestReadRequests OK
-TestGetBus fail: Assertion failed: 
-Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290 != 
-Stop Tolstopaltsevo: buses 750 hint: expected != stop_info, test_transport_db.h:22
-
-TestAddStopDB fail: Assertion failed: 
-Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290 != 
-Stop Tolstopaltsevo: no buses hint: expected != stop_info, test_transport_db.h:50
-
-TestAddBusRouteDB fail: Assertion failed: 
-Stop Tolstopaltsevo exists with latitude 55.611087 and longitude 37.208290 != 
-Stop Tolstopaltsevo: buses 256 hint: expected != stop_info, test_transport_db.h:75
-3 unit tests failed. Terminate
+TestMapOfStops OK
+TestStopParseRequest OK
+TestAddStopDB OK
+TestAddBusRouteDB OK
+TestGetBus OK
+Bus 256: 6 stops on route, 5 unique stops, 5950 route length, 1.361239 curvature
+Bus 750: 5 stops on route, 3 unique stops, 27600 route length, 1.318084 curvature
+Bus 751: not found
+Stop Samara: not found
+Stop Prazhskaya: no buses
+Stop Biryulyovo Zapadnoye: buses 256 828
