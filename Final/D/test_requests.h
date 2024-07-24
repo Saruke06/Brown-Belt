@@ -7,14 +7,14 @@
 // Rewrite all tests in this file to use json.h
 
 void TestAddStopRequest() {
-    std::istringstream node_str(std::string(R"({
+    std::istringstream input(std::string(R"({
       "type": "Stop",
       "longitude": 37.20829,
       "name": "Tolstopaltsevo",
       "latitude": 55.611087
     })"));
 
-    auto node = Json::Load(node_str).GetRoot().AsMap();
+    auto node = Json::Load(input).GetRoot().AsMap();
         
     auto request = std::make_unique<AddStopRequest>();
     request->ParseFrom(node);
@@ -24,9 +24,20 @@ void TestAddStopRequest() {
 }
 
 void TestAddBusRequest1() {
-    std::string_view input = "256: Tolstopaltsevo - Marushkino";
+    std::istringstream input(std::string(R"({
+      "type": "Bus",
+      "name": "256",
+      "stops": [
+      "Tolstopaltsevo",
+      "Marushkino"
+      ],
+      "is_roundtrip": false
+    })"));
+    //"256: Tolstopaltsevo - Marushkino";
+    auto node = Json::Load(input).GetRoot().AsMap();
+
     auto request = std::make_unique<AddBusRequest>();
-    request->ParseFrom(input);
+    request->ParseFrom(node);
     ASSERT_EQUAL(request->bus_number, "256");
     ASSERT_EQUAL(request->stops.size(), 3);
     ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
@@ -34,41 +45,79 @@ void TestAddBusRequest1() {
     ASSERT_EQUAL(request->stops[2], "Tolstopaltsevo");
 }
 
-// void TestAddBusRequest2() {
-//     std::string_view input = "750: Tolstopaltsevo > Marushkino > Rasskazovka > Tolstopaltsevo";
-//     auto request = std::make_unique<AddBusRequest>();
-//     request->ParseFrom(input);
+void TestAddBusRequest2() {
+    std::istringstream input(std::string(R"({
+        "type": "Bus",
+        "name": "750",
+        "stops": [
+        "Tolstopaltsevo",
+        "Marushkino",
+        "Rasskazovka",
+        "Tolstopaltsevo"
+        ],
+        "is_roundtrip": true
+    })"));
 
-//     ASSERT_EQUAL(request->bus_number, "750");
-//     ASSERT_EQUAL(request->stops.size(), 4);
-//     ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
-//     ASSERT_EQUAL(request->stops[1], "Marushkino");
-//     ASSERT_EQUAL(request->stops[2], "Rasskazovka");
-//     ASSERT_EQUAL(request->stops[3], "Tolstopaltsevo");
-// }
+    auto node = Json::Load(input).GetRoot().AsMap();
 
-// void TestParseRequest() {
-//     // Parse bus request 1
-//     std::string_view input = "Bus 256: Tolstopaltsevo - Marushkino";
-//     auto request = ParseRequest(input);
-//     ASSERT(request->type == Request::Type::ADD_BUS);
-//     auto bus_request = static_cast<AddBusRequest*>(request.get());
-//     ASSERT_EQUAL(bus_request->bus_number, "256");
-//     ASSERT_EQUAL(bus_request->stops.size(), 3);
-//     ASSERT_EQUAL(bus_request->stops[0], "Tolstopaltsevo");
-//     ASSERT_EQUAL(bus_request->stops[1], "Marushkino");
+    auto request = std::make_unique<AddBusRequest>();
+    request->ParseFrom(node);
 
-//     // Parse bus request 2
-//     input = "Bus 750: Tolstopaltsevo > Marushkino > Rasskazovka > Tolstopaltsevo";
-//     request = ParseRequest(input);
-//     ASSERT(request->type == Request::Type::ADD_BUS);
-//     auto bus_request2 = static_cast<AddBusRequest*>(request.get());
-//     ASSERT_EQUAL(bus_request2->bus_number, "750");
-//     ASSERT_EQUAL(bus_request2->stops.size(), 4);
-//     ASSERT_EQUAL(bus_request2->stops[0], "Tolstopaltsevo");
-//     ASSERT_EQUAL(bus_request2->stops[1], "Marushkino");
-//     ASSERT_EQUAL(bus_request2->stops[2], "Rasskazovka");
-//     ASSERT_EQUAL(bus_request2->stops[3], "Tolstopaltsevo");
+    ASSERT_EQUAL(request->bus_number, "750");
+    ASSERT_EQUAL(request->stops.size(), 4);
+    ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(request->stops[1], "Marushkino");
+    ASSERT_EQUAL(request->stops[2], "Rasskazovka");
+    ASSERT_EQUAL(request->stops[3], "Tolstopaltsevo");
+}
+
+void TestParseRequest() {
+    // Parse bus request 1
+    std::istringstream input1(std::string(R"({
+        "type": "Bus",
+        "name": "256",
+        "stops": [
+        "Tolstopaltsevo",
+        "Marushkino"
+        ],
+        "is_roundtrip": false
+    })"));
+
+    auto node1 = Json::Load(input1).GetRoot().AsMap();
+    
+    auto request1 = ParseRequest(node1, true);
+    ASSERT(request1->type == Request::Type::ADD_BUS);
+    auto bus_request1 = static_cast<const AddBusRequest&>(*request1);
+
+    ASSERT_EQUAL(bus_request1.bus_number, "256");
+    ASSERT_EQUAL(bus_request1.stops.size(), 3);
+    ASSERT_EQUAL(bus_request1.stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(bus_request1.stops[1], "Marushkino");
+    ASSERT_EQUAL(bus_request1.stops[2], "Tolstopaltsevo");
+
+    // Parse bus request 2
+    std::istringstream input2(std::string(R"({
+        "type": "Bus",
+        "name": "750",
+        "stops": [
+        "Tolstopaltsevo",
+        "Marushkino",
+        "Rasskazovka",
+        "Tolstopaltsevo"
+        ],
+        "is_roundtrip": true
+    })"));
+    auto node2 = Json::Load(input2).GetRoot().AsMap();
+
+    auto request2 = ParseRequest(node2, true);
+    ASSERT(request->type == Request::Type::ADD_BUS);
+    auto bus_request2 = static_cast<AddBusRequest*>(request.get());
+    ASSERT_EQUAL(bus_request2->bus_number, "750");
+    ASSERT_EQUAL(bus_request2->stops.size(), 4);
+    ASSERT_EQUAL(bus_request2->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(bus_request2->stops[1], "Marushkino");
+    ASSERT_EQUAL(bus_request2->stops[2], "Rasskazovka");
+    ASSERT_EQUAL(bus_request2->stops[3], "Tolstopaltsevo");
 
 //     // Parse stop request
 //     input = "Stop Tolstopaltsevo: 55.611087, 37.20829";
