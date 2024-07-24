@@ -23,16 +23,16 @@ void TestAddStopRequest() {
     ASSERT_EQUAL(request->stop.GetLongitude().value(), 37.20829);
 }
 
-// void TestAddBusRequest1() {
-//     std::string_view input = "256: Tolstopaltsevo - Marushkino";
-//     auto request = std::make_unique<AddBusRequest>();
-//     request->ParseFrom(input);
-//     ASSERT_EQUAL(request->bus_number, "256");
-//     ASSERT_EQUAL(request->stops.size(), 3);
-//     ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
-//     ASSERT_EQUAL(request->stops[1], "Marushkino");
-//     ASSERT_EQUAL(request->stops[2], "Tolstopaltsevo");
-// }
+void TestAddBusRequest1() {
+    std::string_view input = "256: Tolstopaltsevo - Marushkino";
+    auto request = std::make_unique<AddBusRequest>();
+    request->ParseFrom(input);
+    ASSERT_EQUAL(request->bus_number, "256");
+    ASSERT_EQUAL(request->stops.size(), 3);
+    ASSERT_EQUAL(request->stops[0], "Tolstopaltsevo");
+    ASSERT_EQUAL(request->stops[1], "Marushkino");
+    ASSERT_EQUAL(request->stops[2], "Tolstopaltsevo");
+}
 
 // void TestAddBusRequest2() {
 //     std::string_view input = "750: Tolstopaltsevo > Marushkino > Rasskazovka > Tolstopaltsevo";
