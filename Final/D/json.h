@@ -9,7 +9,7 @@
 
 namespace Json {
 
-  class Node : std::variant<std::vector<Node>,
+  class Node : public std::variant<std::vector<Node>,
                             std::map<std::string, Node>,
                             int,
                             std::string,
@@ -51,4 +51,17 @@ namespace Json {
   Document Load(std::istream& input = std::cin);
 
   std::ostream& operator<<(std::ostream& output, const Node& node);
+}
+
+// Специализация std::variant_size и std::variant_alternative для Json::Node
+namespace std {
+
+  template <>
+  struct variant_size<Json::Node> : variant_size<typename Json::Node::variant> {};
+
+  template <std::size_t I>
+  struct variant_alternative<I, Json::Node> : variant_alternative<I, typename Json::Node::variant> {};
+
+  template <>
+  inline constexpr std::size_t variant_size_v<Json::Node> = variant_size<Json::Node>::value;
 }

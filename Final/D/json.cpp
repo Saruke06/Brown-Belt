@@ -52,6 +52,7 @@ namespace Json {
       }
       number_str.push_back(c);
     }
+    input.putback(c);
 
     istringstream is(number_str);
 
@@ -130,43 +131,68 @@ namespace Json {
 
   struct VariantPrinter {
     std::ostream& out;
+    int depth = 0;
 
-    VariantPrinter(std::ostream& out) : out(out) {}
+    VariantPrinter(std::ostream& out, int d = 0) : out(out), depth(d) {}
+
+    void printIndent() const {
+      for (int i = 0; i < depth; ++i) {
+        out << "  "; // Используем два пробела для каждого уровня вложенности
+      }
+    }
 
     void operator() (int value) const {
+        printIndent();
         out << value;
     }
 
     void operator() (double value) const {
+        printIndent();
         out << value;
     }
 
     void operator() (bool value) const {
+        printIndent();
         out << std::boolalpha << value;
     }
 
     void operator() (const std::string& value) const {
-        out << value;
+        printIndent();
+        out << '"' << value << '"';
     }
 
     void operator() (const std::vector<Node>& nodes) const {
-      out << "[";
+      printIndent();
+      out << "[\n";
       for (size_t i = 0; i < nodes.size(); ++i) {
-          out << nodes[i];
+          std::visit(VariantPrinter(out, depth + 1), nodes[i]);
           if (i != nodes.size() - 1) {
-              out << ", ";
+              out << ",\n";
           }
       }
+      out << "\n";
+      printIndent();
       out << "]";
     }
 
     void operator() (const std::map<std::string, Node>& nodes) const {
-      out << "{";
-      for (const auto& [key, value] : nodes) {
-          out << key << ": " << value;
+      printIndent();
+      out << "{\n";
+      // ставить запятые после каждой пары, кроме последней
+      for (auto it = nodes.begin(); it != nodes.end(); ++it){
+          VariantPrinter printer(out, depth + 1);
+          printer.printIndent();
+          out << '"' << it->first << '"' << ": ";
+          std::visit(VariantPrinter(out, depth + 1), it->second);
+
+          if (next(it) != nodes.end())
+              out << ",\n";
       }
+      out << "\n";
+      printIndent();
       out << "}";
     }
+
   };
 
   template <typename... Ts>
@@ -176,7 +202,13 @@ namespace Json {
   }
 
   ostream& operator<<(ostream& output, const Node& node) {
-      return output << node;
+      std::visit(VariantPrinter(output), static_cast<const std::variant<std::vector<Node>,
+              std::map<std::string, Node>,
+              int,
+              std::string,
+              double,
+              bool>&>(node));
+      return output;
   }
 
 }

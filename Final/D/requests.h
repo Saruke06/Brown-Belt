@@ -99,7 +99,6 @@ struct BusRequest : ReadRequest<Json::Node> {
     }
 
     Json::Node Process(const TransportDatabase& db) const override {
-        std::cerr << "BusRequest::Process id = " << id << std::endl;
         return db.GetBusInfo(bus_number, id);
     }
 
@@ -118,7 +117,6 @@ struct StopRequest : ReadRequest<Json::Node> {
     }
 
     Json::Node Process(const TransportDatabase& db) const override {
-        std::cerr << "StopRequest::Process id = " << id << std::endl;
         return db.GetStopInfo(stop_name, id);
     }
 
@@ -201,7 +199,7 @@ std::vector<Json::Node> ProcessRequests(const TransportDatabase& db, const std::
         switch(request_holder->type) {
             case Request::Type::OUT_BUS:
             case Request::Type::OUT_STOP: {
-                const auto& request = static_cast<const ReadRequest<std::string>&>(*request_holder);
+                const auto& request = static_cast<const ReadRequest<Json::Node>&>(*request_holder);
                 responses.push_back(request.Process(db));
                 break;
             }
@@ -215,4 +213,7 @@ std::vector<Json::Node> ProcessRequests(const TransportDatabase& db, const std::
 
 void PrintResponses(const std::vector<Json::Node>& responses, std::ostream& output = std::cout) {
     output << responses;
+    // for (const auto& response : responses) {
+    //     output << response << std::endl;
+    // }
 }

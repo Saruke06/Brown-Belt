@@ -1,2 +1,31 @@
-terminate called after throwing an instance of 'std::out_of_range'
-  what():  map::at
+[
+  {
+    "curvature":     1.36124,
+    "request_id":     1965312327,
+    "route_length":     4371.02,
+    "stop_count":     6,
+    "unique_stop_count":     5
+  },
+  {
+    "error_message":     true
+  },
+  {
+    "error_message":     true
+  },
+  {
+    "error_message":     true
+  },
+  {
+    "buses":     [
+
+    ],
+    "request_id":     65100610
+  },
+  {
+    "buses":     [
+      "256",
+      "828"
+    ],
+    "request_id":     1042838872
+  }
+]
