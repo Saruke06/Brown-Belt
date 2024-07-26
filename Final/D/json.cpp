@@ -1,4 +1,5 @@
 #include "json.h"
+#include <iomanip>
 
 using namespace std;
 
@@ -70,6 +71,7 @@ namespace Json {
     while (input >> c && isalpha(c)) {
       bool_str.push_back(c);
     }
+    input.putback(c);
 
     if (bool_str == "true") {
       return Node(true);
@@ -129,86 +131,91 @@ namespace Json {
   }
 
 
-  struct VariantPrinter {
-    std::ostream& out;
-    int depth = 0;
+  // struct VariantPrinter {
+  //   std::ostream& out;
+  //   int depth = 0;
 
-    VariantPrinter(std::ostream& out, int d = 0) : out(out), depth(d) {}
+  //   VariantPrinter(std::ostream& out, int d = 0) : out(out), depth(d) {}
 
-    void printIndent() const {
-      for (int i = 0; i < depth; ++i) {
-        out << "  "; // Используем два пробела для каждого уровня вложенности
-      }
-    }
+  //   void printIndent() const {
+  //     for (int i = 0; i < depth; ++i) {
+  //       out << "  "; // Используем два пробела для каждого уровня вложенности
+  //     }
+  //   }
 
-    void operator() (int value) const {
-        printIndent();
-        out << value;
-    }
+  //   void operator() (int value) const {
+  //       printIndent();
+  //       out << value;
+  //   }
 
-    void operator() (double value) const {
-        printIndent();
-        out << value;
-    }
+  //   void operator() (double value) const {
+  //       printIndent();
+  //       out << std::fixed << std::setprecision(6) << value;
+  //   }
 
-    void operator() (bool value) const {
-        printIndent();
-        out << std::boolalpha << value;
-    }
+  //   void operator() (bool value) const {
+  //       printIndent();
+  //       out << std::boolalpha << value;
+  //   }
 
-    void operator() (const std::string& value) const {
-        printIndent();
-        out << '"' << value << '"';
-    }
+  //   void operator() (const std::string& value) const {
+  //       printIndent();
+  //       out << '"' << value << '"';
+  //   }
 
-    void operator() (const std::vector<Node>& nodes) const {
-      printIndent();
-      out << "[\n";
-      for (size_t i = 0; i < nodes.size(); ++i) {
-          std::visit(VariantPrinter(out, depth + 1), nodes[i]);
-          if (i != nodes.size() - 1) {
-              out << ",\n";
-          }
-      }
-      out << "\n";
-      printIndent();
-      out << "]";
-    }
+  //   void operator() (const std::vector<Node>& nodes) const {
+  //     printIndent();
+  //     out << "[\n";
+  //     for (size_t i = 0; i < nodes.size(); ++i) {
+  //         std::visit(VariantPrinter(out, depth + 1), nodes[i]);
+  //         if (i != nodes.size() - 1) {
+  //             out << ",\n";
+  //         }
+  //     }
+  //     out << "\n";
+  //     printIndent();
+  //     out << "]";
+  //   }
 
-    void operator() (const std::map<std::string, Node>& nodes) const {
-      printIndent();
-      out << "{\n";
-      // ставить запятые после каждой пары, кроме последней
-      for (auto it = nodes.begin(); it != nodes.end(); ++it){
-          VariantPrinter printer(out, depth + 1);
-          printer.printIndent();
-          out << '"' << it->first << '"' << ": ";
-          std::visit(VariantPrinter(out, depth + 1), it->second);
+  //   void operator() (const std::map<std::string, Node>& nodes) const {
+  //     printIndent();
+  //     out << "{\n";
+  //     // ставить запятые после каждой пары, кроме последней
+  //     for (auto it = nodes.begin(); it != nodes.end(); ++it){
+  //         VariantPrinter printer(out, depth + 1);
+  //         printer.printIndent();
+  //         out << '"' << it->first << '"' << ": ";
+  //         // вызвать оператор () для bool если ключ = "is_roundtrip", иначе вызвать оператор () для Node
+  //         if (it->first == "is_roundtrip") {
+  //             out <<  it->second.AsBool();
+  //         } else {
+  //             std::visit(VariantPrinter(out, depth + 1), it->second);
+  //         }
 
-          if (next(it) != nodes.end())
-              out << ",\n";
-      }
-      out << "\n";
-      printIndent();
-      out << "}";
-    }
+  //         if (next(it) != nodes.end())
+  //             out << ",\n";
+  //     }
+  //     out << "\n";
+  //     printIndent();
+  //     out << "}";
+  //   }
 
-  };
+  // };
 
-  template <typename... Ts>
-  std::ostream& operator<<(std::ostream& output, const std::variant<Ts...>& variant) {
-      std::visit(VariantPrinter(output), variant);
-      return output;
-  }
+  // template <typename... Ts>
+  // std::ostream& operator<<(std::ostream& output, const std::variant<Ts...>& variant) {
+  //     std::visit(VariantPrinter(output), variant);
+  //     return output;
+  // }
 
-  ostream& operator<<(ostream& output, const Node& node) {
-      std::visit(VariantPrinter(output), static_cast<const std::variant<std::vector<Node>,
-              std::map<std::string, Node>,
-              int,
-              std::string,
-              double,
-              bool>&>(node));
-      return output;
-  }
+  // ostream& operator<<(ostream& output, const Node& node) {
+  //     std::visit(VariantPrinter(output), static_cast<const std::variant<std::vector<Node>,
+  //             std::map<std::string, Node>,
+  //             int,
+  //             std::string,
+  //             double,
+  //             bool>&>(node));
+  //     return output;
+  // }
 
 }

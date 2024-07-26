@@ -1,31 +1,35 @@
 [
-  {
-    "curvature":     1.36124,
-    "request_id":     1965312327,
-    "route_length":     4371.02,
-    "stop_count":     6,
-    "unique_stop_count":     5
-  },
-  {
-    "error_message":     true
-  },
-  {
-    "error_message":     true
-  },
-  {
-    "error_message":     true
-  },
-  {
-    "buses":     [
-
-    ],
-    "request_id":     65100610
-  },
-  {
-    "buses":     [
-      "256",
-      "828"
-    ],
-    "request_id":     1042838872
-  }
+{
+  "route_length": 5950,
+  "request_id": 1965312327,
+  "curvature": 1.361239,
+  "stop_count": 6,
+  "unique_stop_count": 5
+}, 
+{
+  "route_length": 27600,
+  "request_id": 519139350,
+  "curvature": 1.318084,
+  "stop_count": 5,
+  "unique_stop_count": 3
+}, 
+{
+  "error_message": "not found",
+  "request_id": 194217464
+}, 
+{
+  "error_message": "not found",
+  "request_id": 746888088
+}, 
+{
+  "buses": [],
+  "request_id": 65100610
+}, 
+{
+  "buses": [
+    "256",
+    "828"
+  ],
+  "request_id": 1042838872
+}
 ]

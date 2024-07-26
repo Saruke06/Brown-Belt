@@ -88,7 +88,7 @@ struct ReadRequest : Request {
     virtual ~ReadRequest() = default;
 };
 
-struct BusRequest : ReadRequest<Json::Node> {
+struct BusRequest : ReadRequest<std::string> {
     BusRequest() : ReadRequest(Type::OUT_BUS) {}
     virtual ~BusRequest() = default;
 
@@ -98,7 +98,7 @@ struct BusRequest : ReadRequest<Json::Node> {
         bus_number = request_node.AsMap().at("name").AsString();
     }
 
-    Json::Node Process(const TransportDatabase& db) const override {
+    std::string Process(const TransportDatabase& db) const override {
         return db.GetBusInfo(bus_number, id);
     }
 
@@ -106,7 +106,7 @@ struct BusRequest : ReadRequest<Json::Node> {
     int id = 0;
 };
 
-struct StopRequest : ReadRequest<Json::Node> {
+struct StopRequest : ReadRequest<std::string> {
     StopRequest() : ReadRequest(Type::OUT_STOP) {}
     virtual ~StopRequest() = default;
 
@@ -116,7 +116,7 @@ struct StopRequest : ReadRequest<Json::Node> {
         stop_name = request_node.AsMap().at("name").AsString();
     }
 
-    Json::Node Process(const TransportDatabase& db) const override {
+    std::string Process(const TransportDatabase& db) const override {
         return db.GetStopInfo(stop_name, id);
     }
 
@@ -192,7 +192,7 @@ void ProcessModifyRequests(TransportDatabase* db = nullptr, const std::vector<Re
     }
 }
 
-std::vector<Json::Node> ProcessRequests(const TransportDatabase& db, const std::vector<RequestHolder>& requests) {
+std::vector<Json::Node> ProcessRequestsJson(const TransportDatabase& db, const std::vector<RequestHolder>& requests) {
     std::vector<Json::Node> responses;
 
     for (const auto& request_holder : requests) {
@@ -211,9 +211,44 @@ std::vector<Json::Node> ProcessRequests(const TransportDatabase& db, const std::
     return responses;
 }
 
-void PrintResponses(const std::vector<Json::Node>& responses, std::ostream& output = std::cout) {
-    output << responses;
-    // for (const auto& response : responses) {
-    //     output << response << std::endl;
-    // }
+std::vector<std::string> ProcessRequests(const TransportDatabase& db, const std::vector<RequestHolder>& requests) {
+    std::vector<std::string> responses;
+
+    for (const auto& request_holder : requests) {
+        switch(request_holder->type) {
+            case Request::Type::OUT_BUS:
+            case Request::Type::OUT_STOP: {
+                const auto& request = static_cast<const ReadRequest<std::string>&>(*request_holder);
+                responses.push_back(request.Process(db));
+                break;
+            }
+            default:
+                throw std::invalid_argument("Unknown request type");
+        }
+    }
+
+    return responses;
+}
+
+// void PrintResponsesJson(const std::vector<Json::Node>& responses, std::ostream& output = std::cout) {
+//     output << responses;
+//     // for (const auto& response : responses) {
+//     //     output << response << std::endl;
+//     // }
+// }
+
+void PrintResponses(const std::vector<std::string>& responses, std::ostream& output = std::cout) {
+    // вывести все элементы векторатора respo вмежду э, каждый элемент выводить на новой строке
+    // между элементами вставить запятую и пробел
+    bool first = true;
+    output << "[\n";
+    for (const auto& response : responses) {
+        if (first) {
+            output << response;
+            first = false;
+        } else {
+            output << ", \n" << response;
+        }
+    }
+    output << "\n]";
 }

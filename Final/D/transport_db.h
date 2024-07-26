@@ -174,7 +174,7 @@ public:
         buses[bus_number] = std::shared_ptr<Bus>(new Bus(move(bus_number), move(stops_on_route)));
     }
 
-    Json::Node GetStopInfo(const std::string& stop_name, int id) const {
+    std::string GetStopInfo(const std::string& stop_name, int id) const {
         // Example: 
         /*      
             "buses": [
@@ -183,19 +183,43 @@ public:
             ],
             "request_id": 1042838872
         */
-        std::vector<Json::Node> buses;
+        std::vector<std::string> buses;
+        std::ostringstream os;
         auto it = stops.find(stop_name);
         if (it != stops.end()) {
             for (const auto& bus : it->second->GetBuses()) {
-                buses.push_back(bus);
+                buses.push_back(std::string(bus));
             }
-            return Json::Node(std::map<std::string, Json::Node>{{"buses", buses}, {"request_id", id}});
+            if (!buses.empty()) {
+                os << "{\n";
+                os << "  \"buses\": [\n";
+                for (size_t i = 0; i < buses.size(); ++i) {
+                    os << "    \"" << buses[i] << "\"";
+                    if (i != buses.size() - 1) {
+                        os << ",\n";
+                    } else {
+                        os << "\n";
+                    }
+                }
+                os << "  ],\n";
+                os << "  \"request_id\": " << id << "\n";
+                os << "}";
+            } else {
+                os << "{\n";
+                os << "  \"buses\": [],\n";
+                os << "  \"request_id\": " << id << "\n";
+                os << "}";
+            }
         } else {
-            return Json::Node(std::map<std::string, Json::Node>{{"error_message", "not found"}});
+            os << "{\n";
+            os << "  \"error_message\": \"not found\",\n";
+            os << "  \"request_id\": " << id << "\n";
+            os << "}";
         }
+        return os.str();
     }
 
-    Json::Node GetBusInfo(const std::string& bus_number, int id) const {
+    std::string GetBusInfo(const std::string& bus_number, int id) const {
         // Rebuild as JSON
         // Example:
         /* 
@@ -206,20 +230,26 @@ public:
             "unique_stop_count": 3
         */
         
+        std::ostringstream os;
         if (buses.count(bus_number) == 0) {
-            return Json::Node(std::map<std::string, Json::Node>{{"error_message", "not found"}});
+            os << "{\n";
+            os << "  \"error_message\": \"not found\",\n";
+            os << "  \"request_id\": " << id << "\n";
+            os << "}";
+            return os.str();
         } else {
             auto route = buses.at(bus_number)->GetRoute();
             std::unordered_set<std::string> unique_stops(route.begin(), route.end());
             auto [route_length, fact_route_length] = ComputeRouteAndFactRouteLength(bus_number);
             double c = fact_route_length / route_length;
-            return Json::Node(std::map<std::string, Json::Node>{
-                {"route_length", route_length},
-                {"request_id", id},
-                {"curvature", c},
-                {"stop_count", int(route.size())},
-                {"unique_stop_count", int(unique_stops.size())}
-            });
+            os << "{\n";
+            os << "  \"route_length\": " << fact_route_length << ",\n";
+            os << "  \"request_id\": " << id << ",\n";
+            os << "  \"curvature\": " << std::fixed << std::setprecision(6) << c << ",\n";
+            os << "  \"stop_count\": " << route.size() << ",\n";
+            os << "  \"unique_stop_count\": " << unique_stops.size() << "\n";
+            os << "}";
+            return os.str();
         }
     }
 
@@ -277,27 +307,3 @@ private:
         return degree * PI / 180.0;
     }
 };
-
-std::vector<std::string> ParseStops(std::string_view input) {
-    // 1. stop1 - stop2 - ... - stopN: автобус следует от stop1 до stopN и обратно с указанными промежуточными остановками.
-    // 2. stop1 > stop2 > ... > stopN > stop1: кольцевой маршрут с конечной stop1.
-    // input = "256: stop1 - stop2 - ... - stopN"
-
-    bool is_ring = input.find(" > ") != std::string::npos;
-    std::vector<std::string> stops;
-    
-    std::string_view delimiter = is_ring ? " > " : " - ";
-
-    while (!input.empty()) {
-        stops.push_back(std::string(ReadToken(input, delimiter)));
-    }
-
-    // if !is_ring then add stops in reverse order
-    if (!is_ring) {
-        for (size_t i = stops.size() - 1; i > 0; --i) {
-            stops.push_back(stops[i - 1]);
-        }
-    }
-
-    return stops;
-}
