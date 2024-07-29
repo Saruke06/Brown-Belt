@@ -6,6 +6,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <fstream>
 
 #include "string_parses.h"
 #include "requests.h"
@@ -15,7 +16,7 @@
 // #include "test_string_parses.h"
 // #include "test_requests.h"
 // #include "test_transport_db.h"
-#include "test_json.h"
+// #include "test_json.h"
 
 using namespace std;
 using namespace Json;
@@ -27,18 +28,13 @@ int main() {
     // TestAllTransportDB();
     // TestAllJson();
 
-try {
-  Document doc = Load();
-} catch (const exception& e) {
-  cout << e.what() << endl;
-}
-
     TransportDatabase db;
-  
-    Document doc = Load();
-    const auto modify_requests = ReadRequests(doc.GetRoot().AsMap().at("base_requests").AsArray(), true);
+
+    Document input_doc = Load();
+    const auto& input_map = input_doc.GetRoot().AsMap();
+    const auto modify_requests = ReadRequests(input_map.at("base_requests").AsArray(), true);
     ProcessModifyRequests(&db, modify_requests);
-    const auto read_requests = ReadRequests(doc.GetRoot().AsMap().at("stat_requests").AsArray(), false);
+    const auto read_requests = ReadRequests(input_map.at("stat_requests").AsArray(), false);
     const auto responses = ProcessRequests(db, read_requests);
     PrintResponses(responses);
 

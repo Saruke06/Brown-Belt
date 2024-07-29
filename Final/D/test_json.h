@@ -1,5 +1,8 @@
 #pragma once
 
+#include <iostream>
+#include <fstream>
+
 #include "json.h"
 #include "../../test_runner.h"
 
@@ -47,7 +50,9 @@ void TestJsonParseStop() {
 void TestDocument() {
     using namespace Json;
     try {
-        Document doc = Load();
+        std::fstream file("my_input.json");
+        Document doc = Load(file);
+        const auto modify_requests = ReadRequests(doc.GetRoot().AsMap().at("base_requests").AsArray(), true);
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
     }
@@ -57,5 +62,5 @@ void TestAllJson() {
     TestRunner tr;
     RUN_TEST(tr, TestJsonParseStop);
     //RUN_TEST(tr, TestJsonOutput);
-    RUN_TEST(tr, TestDocument);
+    //RUN_TEST(tr, TestDocument);
 }

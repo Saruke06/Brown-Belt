@@ -9,40 +9,31 @@
 
 namespace Json {
 
-  class Node : std::variant<std::vector<Node>,
-                            std::map<std::string, Node>,
-                            int,
-                            std::string,
-                            double,
-                            bool> {
+  class Node;
+  using Dict = std::map<std::string, Node>;
+
+  class Node : std::variant<std::vector<Node>, Dict, bool, int, double, std::string> {
   public:
     using variant::variant;
+    const variant& GetBase() const { return *this; }
 
-    const auto& AsArray() const {
-      return std::get<std::vector<Node>>(*this);
+    const auto& AsArray() const { return std::get<std::vector<Node>>(*this); }
+    const auto& AsMap() const { return std::get<Dict>(*this); }
+    bool AsBool() const { return std::get<bool>(*this); }
+    int AsInt() const { return std::get<int>(*this); }
+    double AsDouble() const { 
+        return std::holds_alternative<double>(*this) ? std::get<double>(*this) : std::get<int>(*this);
     }
-    const auto& AsMap() const {
-      return std::get<std::map<std::string, Node>>(*this);
-    }
-    int AsInt() const {
-      return std::get<int>(*this);
-    }
-    const auto& AsString() const {
-      return std::get<std::string>(*this);
-    }
-    double AsDouble() const {
-      return std::get<double>(*this);
-    }
-    bool AsBool() const {
-      return std::get<bool>(*this);
-    }
+    const auto& AsString() const { return std::get<std::string>(*this); }
   };
 
   class Document {
   public:
-    explicit Document(Node root);
+    explicit Document(Node root) : root(std::move(root)) {}
 
-    const Node& GetRoot() const;
+    const Node& GetRoot() const {
+      return root;
+    }
 
   private:
     Node root;
@@ -50,18 +41,4 @@ namespace Json {
 
   Document Load(std::istream& input = std::cin);
 
-  std::ostream& operator<<(std::ostream& output, const Node& node);
 }
-
-// // Специализация std::variant_size и std::variant_alternative для Json::Node
-// namespace std {
-
-//   template <>
-//   struct variant_size<Json::Node> : variant_size<typename Json::Node::variant> {};
-
-//   template <std::size_t I>
-//   struct variant_alternative<I, Json::Node> : variant_alternative<I, typename Json::Node::variant> {};
-
-//   template <>
-//   inline constexpr std::size_t variant_size_v<Json::Node> = variant_size<Json::Node>::value;
-// }
