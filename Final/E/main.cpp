@@ -8,7 +8,8 @@
 #include <memory>
 #include <fstream>
 
-#include "string_parses.h"
+#include "range.h"
+#include "router.h"
 #include "requests.h"
 #include "transport_db.h"
 #include "json.h"
@@ -21,23 +22,23 @@
 using namespace std;
 using namespace Json;
 
-
 int main() {
     // TestAllStringParses();
     // TestAllRequests();
     // TestAllTransportDB();
     // TestAllJson();
 
-    TransportDatabase db;
-
-    Document input_doc = Load();
+    const auto input_doc = Json::Load(cin);
     const auto& input_map = input_doc.GetRoot().AsMap();
-    const auto modify_requests = ReadRequests(input_map.at("base_requests").AsArray(), true);
-    ProcessModifyRequests(&db, modify_requests);
-    const auto read_requests = ReadRequests(input_map.at("stat_requests").AsArray(), false);
-    const auto responses = ProcessRequests(db, read_requests);
-    PrintResponses(responses);
 
-    
+    const Database transport_database{
+        Descriptions::ReadDescriptions(input_map.at("base_requests").AsArray()),
+        Descriptions::ParseRouteSettings(input_map.at("routing_settings").AsMap())
+    };
+
+    Json::PrintValue(
+        ProcessStatRequests(transport_database, input_map.at("stat_requests").AsArray()),
+        cout
+    );
     return 0;
 }

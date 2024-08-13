@@ -41,4 +41,25 @@ namespace Json {
 
   Document Load(std::istream& input = std::cin);
 
+
+  void PrintNode(const Json::Node& node, std::ostream& output);
+
+  template <typename Value>
+  void PrintValue(const Value& value, std::ostream& output);
+
+  template <>
+  void PrintValue<std::string>(const std::string& value, std::ostream& output);
+
+  template <>
+  void PrintValue<bool>(const bool& value, std::ostream& output);
+
+  template <>
+  void PrintValue<std::vector<Node>>(const std::vector<Node>& nodes, std::ostream& output);
+
+  template <>
+  void PrintValue<Dict>(const Dict& dict, std::ostream& output);
+
+  void PrintNode(const Json::Node& node, std::ostream& output);
+
+  void Print(const Document& document, std::ostream& output);
 }

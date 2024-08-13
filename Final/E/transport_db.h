@@ -12,298 +12,225 @@
 #include <map>
 #include <optional>
 
-#include "string_parses.h"
 #include "json.h"
+#include "router.h"
 
-const double PI = 3.1415926535;
-const double EARTH_RADIUS = 6371000;
 
-class Stop {
+namespace Sphere {
+  const double PI = 3.1415926535;
+
+  double ConvertDegreesToRadians(double degrees) {
+    return degrees * PI / 180.0;
+  }
+
+  const double EARTH_RADIUS = 6'371'000;
+
+  struct Point {
+    double latitude;
+    double longitude;
+
+    static Point FromDegrees(double latitude, double longitude) {
+      return {
+        ConvertDegreesToRadians(latitude),
+        ConvertDegreesToRadians(longitude)
+      };
+    }
+  };
+
+  double Distance(Point lhs, Point rhs) {
+    lhs = Point::FromDegrees(lhs.latitude, lhs.longitude);
+    rhs = Point::FromDegrees(rhs.latitude, rhs.longitude);
+    return acos(
+      sin(lhs.latitude) * sin(rhs.latitude)
+      + cos(lhs.latitude) * cos(rhs.latitude) * cos(abs(lhs.longitude - rhs.longitude))
+    ) * EARTH_RADIUS;
+  }
+}
+
+namespace Descriptions {
+  struct Stop {
+    std::string name;
+    Sphere::Point position;
+    std::unordered_map<std::string, double> distances;
+
+    static Stop ParseFrom(const Json::Dict& attrs) {
+      Stop stop = {
+          .name = attrs.at("name").AsString(),
+          .position = {
+              .latitude = attrs.at("latitude").AsDouble(),
+              .longitude = attrs.at("longitude").AsDouble(),
+          }
+      };
+      if (attrs.count("road_distances") > 0) {
+        for (const auto& [neighbour_stop, distance_node] : attrs.at("road_distances").AsMap()) {
+          stop.distances[neighbour_stop] = distance_node.AsInt();
+        }
+      }
+      return stop;
+    }
+  };
+
+  std::vector<std::string> ParseStops(const std::vector<Json::Node>& stop_nodes, bool is_roundtrip) {
+    std::vector<std::string> stops;
+    stops.reserve(stop_nodes.size());
+    for (const Json::Node& stop_node : stop_nodes) {
+      stops.push_back(stop_node.AsString());
+    }
+    if (is_roundtrip || stops.size() <= 1) {
+      return stops;
+    }
+    stops.reserve(stops.size() * 2 - 1);  // end stop is not repeated
+    for (size_t stop_idx = stops.size() - 1; stop_idx > 0; --stop_idx) {
+      stops.push_back(stops[stop_idx - 1]);
+    }
+    return stops;
+  }
+
+  struct Bus {
+    std::string name;
+    std::vector<std::string> stops;
+
+    static Bus ParseFrom(const Json::Dict& attrs) {
+      return Bus{
+          .name = attrs.at("name").AsString(),
+          .stops = ParseStops(attrs.at("stops").AsArray(), attrs.at("is_roundtrip").AsBool()),
+      };
+    }
+  };
+
+  struct RouteSettings {
+    int bus_wait_time = 0;
+    double bus_velocity = 0.0;
+  };
+
+  inline RouteSettings ParseRouteSettings(const Json::Dict& dict) {
+    return {
+        .bus_wait_time = dict.at("bus_wait_time").AsInt(),
+        .bus_velocity = dict.at("bus_velocity").AsDouble(),
+    };
+  }
+
+  using InputQuery = std::variant<Stop, Bus>;
+
+  std::vector<InputQuery> ReadDescriptions(const std::vector<Json::Node>& nodes) {
+    std::vector<InputQuery> result;
+    result.reserve(nodes.size());
+
+    for (const Json::Node& node : nodes) {
+      const auto& node_dict = node.AsMap();
+      if (node_dict.at("type").AsString() == "Bus") {
+        result.push_back(Bus::ParseFrom(node_dict));
+      } else {
+        result.push_back(Stop::ParseFrom(node_dict));
+      }
+    }
+
+    return result;
+  }
+}
+
+namespace Responses {
+  struct Stop {
+    std::set<std::string> bus_names;
+  };
+
+  struct Bus {
+    size_t stop_count = 0;
+    size_t unique_stop_count = 0;
+    double road_route_length = 0.0;
+    double geo_route_length = 0.0;
+  };
+}
+
+class Database {
 public:
+  using Bus = Responses::Bus;
+  using Stop = Responses::Stop;
 
-    Stop() = default;
-    Stop(std::string name) {
-        stop_name = name;
+  explicit Database(std::vector<Descriptions::InputQuery> data, Descriptions::RouteSettings settings) : 
+  routing_settings_(settings),
+  graph_(0)
+  {
+    auto stops_end = std::partition(begin(data), end(data), [](const auto& item) {
+      return std::holds_alternative<Descriptions::Stop>(item);
+    });
+
+    std::unordered_map<std::string, const Descriptions::Stop*> stop_info;
+    for (const auto& item : Range{begin(data), stops_end}) {
+      const auto& stop = std::get<Descriptions::Stop>(item);
+      stop_info[stop.name] = &stop;
+      stops.insert({stop.name, {}});
     }
 
-    static Stop ParseFrom(const Json::Node& request_node) {
-        // input = "X: latitude, longitude, D1m to stop1, D2m to stop2, ..."
-        std::string name = request_node.AsMap().at("name").AsString();
-        const double latitude = request_node.AsMap().at("latitude").AsDouble();
-        const double longitude = request_node.AsMap().at("longitude").AsDouble();
-        if(request_node.AsMap().count("road_distances") == 0) {
-            return {name, latitude, longitude};
-        } else {
-            Stop stop(name, latitude, longitude);
-            for (const auto& [stop_name, distance] : request_node.AsMap().at("road_distances").AsMap()) {
-                stop.AddDistance(stop_name, distance.AsInt());
-            }
-            return stop;
-        }
+    // resize graph.size() to the number of stops * 2
+    graph_ = Graph::DirectedWeightedGraph<double>(stops.size() * 2);
+
+    for (const auto& item : Range{stops_end, end(data)}) {
+      const auto& bus = std::get<Descriptions::Bus>(item);
+
+      buses[bus.name] = Bus{
+        bus.stops.size(),
+        ComputeUniqueItemsCount(AsRange(bus.stops)),
+        ComputeRoadRouteLength(bus.stops, stop_info),
+        ComputeGeoRouteDistance(bus.stops, stop_info)
+      };
+
+      for (const std::string& stop_name : bus.stops) {
+        stops.at(stop_name).bus_names.insert(bus.name);
+      }
     }
 
-    void SetLatitude(double lat) {
-        latitude = lat;
-    }
 
-    void SetLongitude(double lon) {
-        longitude = lon;
-    }
+    router_ = std::make_unique<Graph::Router<double>>(graph_);
+  }
 
-    std::string GetName() const {
-        return stop_name;
-    }
+  const Stop* GetStop(const std::string& name) const {
+    return GetValuePointer(stops, name);
+  }
 
-    std::optional<double> GetLatitude() const {
-        return latitude;
-    }
-
-    std::optional<double> GetLongitude() const {
-        return longitude;
-    }
-
-    void AddBusToStop(const std::string& bus_number) {
-        buses_for_stop.insert(bus_number);
-    }
-
-    const std::set<std::string>& GetBuses() const {
-        return buses_for_stop;
-    }
-
-    void AddDistance(const std::string& stop_name, int distance) {
-        distances[stop_name] = distance;
-    }
-
-    void AddDistances(const std::unordered_map<std::string, int>& dist) {
-        distances = std::move(dist);
-    }
-
-    std::optional<int> GetDistance(const std::string& stop_name) const {
-        if (distances.count(stop_name) == 0) {
-            return std::nullopt;
-        }
-        return distances.at(stop_name);
-    }
-
-    const auto& GetDistances() const {
-        return distances;
-    }
+  const Bus* GetBus(const std::string& name) const {
+    return GetValuePointer(buses, name);
+  }
 
 private:
-    std::string stop_name;
-    std::optional<double> latitude;
-    std::optional<double> longitude;
-    std::set<std::string> buses_for_stop;
-    std::unordered_map<std::string, int> distances;
-
-    Stop(std::string name, double latitude, double longitude) 
-        : stop_name(name), latitude(latitude), longitude(longitude) {}
-};
-
-class Bus {
-public:
-    Bus() = default;
-    Bus(std::string number, std::vector<std::string> stops) 
-        : bus_number(number) {
-            for (auto& stop : stops)
-                route.push_back(std::move(stop));
-        }
-
-    std::vector<std::string> GetRoute() const {
-        return route;
+  static double ComputeRoadRouteLength(
+    const std::vector<std::string>& stops,
+    const std::unordered_map<std::string, const Descriptions::Stop*> stop_info
+  ) {
+    double result = 0;
+    for (size_t i = 1; i < stops.size(); ++i) {
+      result += Distance(*stop_info.at(stops[i - 1]), *stop_info.at(stops[i]));
     }
+    return result;
+  }
 
-private:
-    std::string bus_number;
-    std::vector<std::string> route;
-};
-
-class TransportDatabase {
-public:
-    TransportDatabase() = default;
-
-    void CheckAndSetStopCoordinates(const Stop& stop) {
-        auto it_stop = stops.find(stop.GetName());
-        bool has_coordinates = it_stop->second->GetLatitude().has_value() && it_stop->second->GetLongitude().has_value();
-        if (!has_coordinates) {
-            if (stop.GetLatitude().has_value() && stop.GetLongitude().has_value()) {
-                it_stop->second->SetLatitude(stop.GetLatitude().value());
-                it_stop->second->SetLongitude(stop.GetLongitude().value());
-            }
-        }
+  static double ComputeGeoRouteDistance(
+    const std::vector<std::string>& stops,
+    const std::unordered_map<std::string, const Descriptions::Stop*> stop_info
+  ) {
+    double result = 0;
+    for (size_t i = 1; i < stops.size(); ++i) {
+      result += Sphere::Distance(
+        stop_info.at(stops[i - 1])->position, stop_info.at(stops[i])->position
+      );
     }
+    return result;
+  }
 
-    void AddReverseDistances(const Stop& stop) {
-        for (const auto& [stop_name, distance] : stop.GetDistances()) {
-            auto it = stops.find(stop_name);
-            if (it != stops.end()) {
-                it->second->AddDistance(stop.GetName(), distance);
-            } else {
-                stops[stop_name] = std::shared_ptr<Stop>(new Stop(stop_name));
-                stops[stop_name]->AddDistance(stop.GetName(), distance);
-            }
-        }
+  static double Distance(const Descriptions::Stop& lhs, const Descriptions::Stop& rhs) {
+    if (auto it = lhs.distances.find(rhs.name); it != lhs.distances.end()) {
+      return it->second;
+    } else if (auto it2 = rhs.distances.find(lhs.name); it2 != rhs.distances.end()) {
+      return it2->second;
+    } else {
+      return Sphere::Distance(lhs.position, rhs.position);
     }
+  }
 
-    void AddStop(const Stop& stop) {
-        auto current_stop_name = stop.GetName();
-        auto it_stop = stops.find(current_stop_name);
-        if (it_stop == stops.end()) {
-            stops[current_stop_name] = std::shared_ptr<Stop>(new Stop(stop));
-            //AddReverseDistances(stop);
-
-        } else {
-            CheckAndSetStopCoordinates(stop);
-
-            //AddReverseDistances(stop);
-
-            // Merge stop.GetDistances() to stops[current_stop_name] without overwriting
-            for (const auto& [stop_name, distance] : stop.GetDistances()) {
-                if (it_stop->second->GetDistances().count(stop_name) == 0) {
-                    it_stop->second->AddDistance(stop_name, distance);
-                }
-            }
-        }
-    }
-
-    void AddBus(const std::string& bus_number, const std::vector<std::string>& stops_on_route) {
-        for (const auto& stop : stops_on_route) {
-            AddStop(stop);
-            stops[stop]->AddBusToStop(bus_number);
-        }
-        buses[bus_number] = std::shared_ptr<Bus>(new Bus(move(bus_number), move(stops_on_route)));
-    }
-
-    std::string GetStopInfo(const std::string& stop_name, int id) const {
-        // Example: 
-        /*      
-            "buses": [
-              "256",
-              "828"
-            ],
-            "request_id": 1042838872
-        */
-        std::vector<std::string> buses;
-        std::ostringstream os;
-        auto it = stops.find(stop_name);
-        if (it != stops.end()) {
-            for (const auto& bus : it->second->GetBuses()) {
-                buses.push_back(std::string(bus));
-            }
-            if (!buses.empty()) {
-                os << "{\n";
-                os << "  \"buses\": [\n";
-                for (size_t i = 0; i < buses.size(); ++i) {
-                    os << "    \"" << buses[i] << "\"";
-                    if (i != buses.size() - 1) {
-                        os << ",\n";
-                    } else {
-                        os << "\n";
-                    }
-                }
-                os << "  ],\n";
-                os << "  \"request_id\": " << id << "\n";
-                os << "}";
-            } else {
-                os << "{\n";
-                os << "  \"buses\": [],\n";
-                os << "  \"request_id\": " << id << "\n";
-                os << "}";
-            }
-        } else {
-            os << "{\n";
-            os << "  \"error_message\": \"not found\",\n";
-            os << "  \"request_id\": " << id << "\n";
-            os << "}";
-        }
-        return os.str();
-    }
-
-    std::string GetBusInfo(const std::string& bus_number, int id) const {
-        // Rebuild as JSON
-        // Example:
-        /* 
-            "route_length": 27600,
-            "request_id": 519139350,
-            "curvature": 1.31808,
-            "stop_count": 5,
-            "unique_stop_count": 3
-        */
-        
-        std::ostringstream os;
-        if (buses.count(bus_number) == 0) {
-            os << "{\n";
-            os << "  \"error_message\": \"not found\",\n";
-            os << "  \"request_id\": " << id << "\n";
-            os << "}";
-            return os.str();
-        } else {
-            auto route = buses.at(bus_number)->GetRoute();
-            std::unordered_set<std::string> unique_stops(route.begin(), route.end());
-            auto [route_length, fact_route_length] = ComputeRouteAndFactRouteLength(bus_number);
-            double c = fact_route_length / route_length;
-            os << "{\n";
-            os << "  \"route_length\": " << fact_route_length << ",\n";
-            os << "  \"request_id\": " << id << ",\n";
-            os << "  \"curvature\": " << std::fixed << std::setprecision(6) << c << ",\n";
-            os << "  \"stop_count\": " << route.size() << ",\n";
-            os << "  \"unique_stop_count\": " << unique_stops.size() << "\n";
-            os << "}";
-            return os.str();
-        }
-    }
-
-    const auto& GetBus(const std::string& bus_number) const {
-        return buses.at(bus_number);
-    }
-
-    const auto& GetStop(const std::string& stop_name) const {
-        return stops.at(stop_name);
-    }
-
-    static double ComputeDistance(const Stop& lhs, const Stop& rhs) {
-        if (!lhs.GetLatitude() || !lhs.GetLongitude() || !rhs.GetLatitude() || !rhs.GetLongitude()) {
-            std::cerr << "NO coordinates" << std::endl;
-        }
-
-        double lhs_lat = toRadians(*lhs.GetLatitude());
-        double rhs_lat = toRadians(*rhs.GetLatitude());
-        double lhs_lon = toRadians(*lhs.GetLongitude());
-        double rhs_lon = toRadians(*rhs.GetLongitude());
-
-        return acos(sin(lhs_lat) * sin(rhs_lat) + 
-                    cos(lhs_lat) * cos(rhs_lat) *
-                    cos(fabs(lhs_lon - rhs_lon))) * EARTH_RADIUS;
-    }
-
-    std::pair<double, int> ComputeRouteAndFactRouteLength(const std::string& bus_number) const {
-        double route_length = 0.;
-        int fact_route_length = 0.;
-        const auto& route = buses.at(bus_number)->GetRoute();
-        for (size_t i = 1; i < route.size(); ++i) {
-            route_length += ComputeDistance(*stops.at(route[i - 1]), *stops.at(route[i]));
-            fact_route_length += FindDistance(route[i - 1], route[i]);
-        }
-        return {route_length, fact_route_length};
-    }
-
-    int FindDistance(const std::string& stop1, const std::string& stop2) const {
-        // если для stop1 нет расстояния до stop2, то вернуть расстояние от stop2 до stop1
-        auto it = stops.find(stop1);
-        if (it != stops.end()) {
-            auto distance = it->second->GetDistance(stop2);
-            if (distance.has_value()) {
-                return distance.value();
-            }
-        }
-        return stops.at(stop2)->GetDistance(stop1).value();
-    }
-
-private:
-    std::unordered_map<std::string, std::shared_ptr<Bus>> buses;
-    std::unordered_map<std::string, std::shared_ptr<Stop>> stops;
-
-    static double toRadians(double degree) {
-        return degree * PI / 180.0;
-    }
+  std::unordered_map<std::string, Stop> stops;
+  std::unordered_map<std::string, Bus> buses;
+  // for Route
+  Descriptions::RouteSettings routing_settings_;
+  Graph::DirectedWeightedGraph<double> graph_;
+  std::unique_ptr<Graph::Router<double>> router_;
 };

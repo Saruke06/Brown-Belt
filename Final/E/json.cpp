@@ -21,7 +21,7 @@ namespace Json {
   }
 
   Node LoadBool(istream& input) {
-    string s;
+    std::string s;
     while (isalpha(input.peek())) {
       s.push_back(input.get());
     }
@@ -53,7 +53,7 @@ namespace Json {
   }
 
   Node LoadString(istream& input) {
-    string line;
+    std::string line;
     getline(input, line, '"');
     return Node(move(line));
   }
@@ -66,7 +66,7 @@ namespace Json {
         input >> c;
       }
 
-      string key = LoadString(input).AsString();
+      std::string key = LoadString(input).AsString();
       input >> c;
       result.emplace(move(key), LoadNode(input));
     }
@@ -95,6 +95,63 @@ namespace Json {
 
   Document Load(istream& input) {
     return Document{LoadNode(input)};
+  }
+
+  
+  void PrintNode(const Json::Node& node, std::ostream& output);
+
+  template <typename Value>
+  void PrintValue(const Value& value, std::ostream& output) {
+    output << value;
+  }
+
+  template <>
+  void PrintValue<std::string>(const std::string& value, std::ostream& output) {
+    output << '"' << value << '"';
+  }
+
+  template <>
+  void PrintValue<bool>(const bool& value, std::ostream& output) {
+    output << std::boolalpha << value;
+  }
+
+  template <>
+  void PrintValue<std::vector<Node>>(const std::vector<Node>& nodes, std::ostream& output) {
+    output << '[';
+    bool first = true;
+    for (const Node& node : nodes) {
+      if (!first) {
+        output << ", ";
+      }
+      first = false;
+      PrintNode(node, output);
+    }
+    output << ']';
+  }
+
+  template <>
+  void PrintValue<Dict>(const Dict& dict, std::ostream& output) {
+    output << '{';
+    bool first = true;
+    for (const auto& [key, node]: dict) {
+      if (!first) {
+        output << ", ";
+      }
+      first = false;
+      PrintValue(key, output);
+      output << ": ";
+      PrintNode(node, output);
+    }
+    output << '}';
+  }
+
+  void PrintNode(const Json::Node& node, std::ostream& output) {
+    visit([&output](const auto& value) { PrintValue(value, output); },
+          node.GetBase());
+  }
+
+  void Print(const Document& document, std::ostream& output) {
+    PrintNode(document.GetRoot(), output);
   }
 
 }
