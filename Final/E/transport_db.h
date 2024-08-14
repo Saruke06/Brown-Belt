@@ -165,6 +165,13 @@ public:
     // resize graph.size() to the number of stops * 2
     graph_ = Graph::DirectedWeightedGraph<double>(stops.size() * 2);
 
+    // for each Stop, there are two vertices in the graph: 
+    // one to enter the stop and one to exit the stop after bus_wait_time
+    for (const auto& stop : Range{begin(data), stops_end}) {
+      graph_.AddEdge({stops.size() * 2 - 2, stops.size() * 2 - 1, routing_settings_.bus_wait_time});
+      graph_.AddEdge({stops.size() * 2 - 1, stops.size() * 2 - 2, routing_settings_.bus_wait_time});
+    }
+
     for (const auto& item : Range{stops_end, end(data)}) {
       const auto& bus = std::get<Descriptions::Bus>(item);
 
