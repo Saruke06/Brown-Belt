@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.11)
+
+project(Final_A CXX)
+set(CMAKE_CXX_STANDARD 17)
+
+set(FILES_MAIN main.cpp)
+#files for part E
+set(SOURCE_FILES 
+	Types.cpp
+	city_router.cpp	
+	builder.cpp
+	json.cpp)
+set(HEADERS_FILES
+	Types.h
+	city_router.h
+	json.h	
+	builder.h
+	router.h
+	graph.h)
+
+add_executable(router ${HEADERS_FILES} ${SOURCE_FILES} ${FILES_MAIN})
+
+source_group("Sources" FILES ${SOURCE_FILES})
+source_group("Headers" FILES ${HEADERS_FILES})
+source_group("Main file" FILES ${FILES_MAIN})
