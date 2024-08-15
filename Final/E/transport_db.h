@@ -156,21 +156,21 @@ public:
     });
 
     std::unordered_map<std::string, const Descriptions::Stop*> stop_info;
+    Graph::VertexId vertex_id = 0;
     for (const auto& item : Range{begin(data), stops_end}) {
       const auto& stop = std::get<Descriptions::Stop>(item);
       stop_info[stop.name] = &stop;
       stops.insert({stop.name, {}});
+
+      // нумерация вершин графа: у каждой остановки две вершины - вход и выход
+      stops_vertex_ids[stop.name] = {vertex_id * 2, vertex_id * 2 + 1};
+      // для каждой вершины храним имя остановки
+      vertex_ids_to_stops[vertex_id * 2] = stop.name;
+      vertex_ids_to_stops[vertex_id * 2 + 1] = stop.name;
     }
 
     // resize graph.size() to the number of stops * 2
     graph_ = Graph::DirectedWeightedGraph<double>(stops.size() * 2);
-
-    // for each Stop, there are two vertices in the graph: 
-    // one to enter the stop and one to exit the stop after bus_wait_time
-    for (const auto& stop : Range{begin(data), stops_end}) {
-      graph_.AddEdge({stops.size() * 2 - 2, stops.size() * 2 - 1, routing_settings_.bus_wait_time});
-      graph_.AddEdge({stops.size() * 2 - 1, stops.size() * 2 - 2, routing_settings_.bus_wait_time});
-    }
 
     for (const auto& item : Range{stops_end, end(data)}) {
       const auto& bus = std::get<Descriptions::Bus>(item);
@@ -185,8 +185,22 @@ public:
       for (const std::string& stop_name : bus.stops) {
         stops.at(stop_name).bus_names.insert(bus.name);
       }
-    }
 
+      // for each Stop, there are two vertices in the graph: 
+      // one to enter the stop and one to exit the stop after bus_wait_time
+      // the exit of the last stop connects to the entrance of all the next stops
+      // the exit of the last stop connects to the entrance of the first stop
+      for (size_t i = 1; i < bus.stops.size(); ++i) {
+        const auto& from_enter = *stop_info.at(bus.stops[i - 1]);
+        const auto& from_exit = *stop_info.at(bus.stops[i - 1]);
+        const auto& to_enter = *stop_info.at(bus.stops[i]);
+
+        const double weight = Sphere::Distance(from_exit.position, to_enter.position) / routing_settings_.bus_velocity;
+
+        graph_.AddEdge({stops.size() + i - 1, i, weight});
+        graph_.AddEdge({i, stops.size() + i - 1, (double)routing_settings_.bus_wait_time});
+      }
+    }
 
     router_ = std::make_unique<Graph::Router<double>>(graph_);
   }
@@ -240,4 +254,7 @@ private:
   Descriptions::RouteSettings routing_settings_;
   Graph::DirectedWeightedGraph<double> graph_;
   std::unique_ptr<Graph::Router<double>> router_;
+  // additional for Route
+  std::unordered_map<std::string, std::pair<Graph::VertexId, Graph::VertexId>> stops_vertex_ids;
+  std::unordered_map<Graph::VertexId, std::string> vertex_ids_to_stops;
 };
