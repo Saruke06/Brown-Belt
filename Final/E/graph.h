@@ -9,6 +9,11 @@
 
 namespace Graph {
 
+  enum class EDGE_TYPE {
+    WAIT,
+    BUS
+  };
+
   using VertexId = size_t;
   using EdgeId = size_t;
 
