@@ -119,7 +119,7 @@ void PrintString(const std::string& value, std::ostream& out) {
             out << "\\n"sv;
             break;
         case '"':
-            // Ñèìâîëû " è \ âûâîäÿòñÿ êàê \" èëè \\, ñîîòâåòñòâåííî
+            // ÐžÐ±Ñ€Ð°Ð±Ð¾Ñ‚ÐºÐ° " Ð¸ \ ÑÐ¸Ð¼Ð²Ð¾Ð»Ð¾Ð² Ð´Ð»Ñ \" Ð¸ \\ ÑÐ¾Ð¾Ñ‚Ð²ÐµÑ‚ÑÑ‚Ð²ÐµÐ½Ð½Ð¾
             [[fallthrough]];
         case '\\':
             out.put('\\');
@@ -142,9 +142,9 @@ void PrintValue<std::nullptr_t>(const std::nullptr_t&, const PrintContext& ctx) 
     ctx.out << "null"sv;
 }
 
-// Â ñïåöèàëèçàöè øàáëîíà PrintValue äëÿ òèïà bool ïàðàìåòð value ïåðåäà¸òñÿ
-// ïî êîíñòàíòíîé ññûëêå, êàê è â îñíîâíîì øàáëîíå.
-// Â êà÷åñòâå àëüòåðíàòèâû ìîæíî èñïîëüçîâàòü ïåðåãðóçêó:
+// Ð’ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑŒÑÐºÐ¾Ð¹ Ñ„ÑƒÐ½ÐºÑ†Ð¸Ð¸ PrintValue Ð´Ð»Ñ Ñ‚Ð¸Ð¿Ð° bool Ð¿Ð°Ñ€Ð°Ð¼ÐµÑ‚Ñ€ value Ð¿ÐµÑ€ÐµÐ´Ð°ÐµÑ‚ÑÑ
+// ÐºÐ°Ðº Ð½ÐµÐ¸Ð·Ð¼ÐµÐ½ÑÐµÐ¼Ñ‹Ð¹ Ð¾Ð±ÑŠÐµÐºÑ‚, Ñ‡Ñ‚Ð¾ Ð¸ ÑƒÐºÐ°Ð·Ð°Ð½Ð¾ Ð² ÑÐ¸Ð³Ð½Ð°Ñ‚ÑƒÑ€Ðµ Ñ„ÑƒÐ½ÐºÑ†Ð¸Ð¸.
+// Ð’ Ñ€ÐµÐ·ÑƒÐ»ÑŒÑ‚Ð°Ñ‚Ðµ Ð²Ð¾Ð·Ð½Ð¸ÐºÐ°ÐµÑ‚ Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ÑÑ‚ÑŒ Ð¿ÐµÑ€ÐµÐ´Ð°Ñ‡Ð¸ ÐºÐ¾Ð½Ñ‚ÐµÐºÑÑ‚Ð°:
 // void PrintValue(bool value, const PrintContext& ctx);
 template <>
 void PrintValue<bool>(const bool& value, const PrintContext& ctx) {

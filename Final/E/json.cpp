@@ -1,157 +1,217 @@
 #include "json.h"
-#include <iomanip>
 
 using namespace std;
 
-namespace Json {
+namespace Json
+{
 
-  Node LoadNode(istream& input);
-
-  Node LoadArray(istream& input) {
+Node LoadArray(istream &input)
+{
     vector<Node> result;
 
-    for (char c; input >> c && c != ']'; ) {
-      if (c != ',') {
-        input.putback(c);
-      }
-      result.push_back(LoadNode(input));
+    for (char c; input >> c && c != ']';)
+    {
+        if (c != ',')
+        {
+            input.putback(c);
+        }
+        result.push_back(LoadNode(input));
     }
 
-    return Node(move(result));
-  }
+    return Node(std::move(result));
+}
 
-  Node LoadBool(istream& input) {
+Node LoadBool(istream &input)
+{
     std::string s;
-    while (isalpha(input.peek())) {
-      s.push_back(input.get());
+    while (isalpha(input.peek()))
+    {
+        s.push_back(input.get());
     }
     return Node(s == "true");
-  }
+}
 
-  Node LoadNumber(istream& input) {
-    bool is_negative = false;
-    if (input.peek() == '-') {
-      is_negative = true;
-      input.get();
-    }
-    int int_part = 0;
-    while (isdigit(input.peek())) {
-      int_part *= 10;
-      int_part += input.get() - '0';
-    }
-    if (input.peek() != '.') {
-      return Node(int_part * (is_negative ? -1 : 1));
-    }
-    input.get();  // '.'
-    double result = int_part;
-    double frac_mult = 0.1;
-    while (isdigit(input.peek())) {
-      result += frac_mult * (input.get() - '0');
-      frac_mult /= 10;
-    }
-    return Node(result * (is_negative ? -1 : 1));
-  }
+Node LoadNumber(istream &input)
+{
+    double result = 0.0;
+    input >> result;
+    return Node(result);
+}
 
-  Node LoadString(istream& input) {
+Node LoadString(istream &input)
+{
     std::string line;
     getline(input, line, '"');
-    return Node(move(line));
-  }
+    return Node(std::move(line));
+}
 
-  Node LoadDict(istream& input) {
+Node LoadDict(istream &input)
+{
     Dict result;
 
-    for (char c; input >> c && c != '}'; ) {
-      if (c == ',') {
-        input >> c;
-      }
+    for (char c; input >> c && c != '}';)
+    {
+        if (c == ',')
+        {
+            input >> c;
+        }
 
-      std::string key = LoadString(input).AsString();
-      input >> c;
-      result.emplace(move(key), LoadNode(input));
+        std::string key = LoadString(input).AsString();
+        input >> c;
+        result.emplace(std::move(key), LoadNode(input));
     }
 
-    return Node(move(result));
-  }
+    return Node(std::move(result));
+}
 
-  Node LoadNode(istream& input) {
+Node LoadNode(istream &input)
+{
     char c;
     input >> c;
 
-    if (c == '[') {
-      return LoadArray(input);
-    } else if (c == '{') {
-      return LoadDict(input);
-    } else if (c == '"') {
-      return LoadString(input);
-    } else if (c == 't' || c == 'f') {
-      input.putback(c);
-      return LoadBool(input);
-    } else {
-      input.putback(c);
-      return LoadNumber(input);
+    if (c == '[')
+    {
+        return LoadArray(input);
     }
-  }
+    else if (c == '{')
+    {
+        return LoadDict(input);
+    }
+    else if (c == '"')
+    {
+        return LoadString(input);
+    }
+    else if (c == 't' || c == 'f')
+    {
+        input.putback(c);
+        return LoadBool(input);
+    }
+    else
+    {
+        input.putback(c);
+        return LoadNumber(input);
+    }
+}
 
-  Document Load(istream& input) {
+Document Load(istream &input)
+{
     return Document{LoadNode(input)};
-  }
+}
 
-  
-  void PrintNode(const Json::Node& node, std::ostream& output);
+struct PrintContext
+{
+    std::ostream& out;
+    int indent = 0;
+    int indent_step = 4;
 
-  template <typename Value>
-  void PrintValue(const Value& value, std::ostream& output) {
-    output << value;
-  }
-
-  template <>
-  void PrintValue<std::string>(const std::string& value, std::ostream& output) {
-    output << '"' << value << '"';
-  }
-
-  template <>
-  void PrintValue<bool>(const bool& value, std::ostream& output) {
-    output << std::boolalpha << value;
-  }
-
-  template <>
-  void PrintValue<std::vector<Node>>(const std::vector<Node>& nodes, std::ostream& output) {
-    output << '[';
-    bool first = true;
-    for (const Node& node : nodes) {
-      if (!first) {
-        output << ", ";
-      }
-      first = false;
-      PrintNode(node, output);
+    void PrintIndent() const {
+        for (int i = 0; i < indent; ++i) {
+            out.put(' ');
+        }
     }
-    output << ']';
-  }
 
-  template <>
-  void PrintValue<Dict>(const Dict& dict, std::ostream& output) {
-    output << '{';
-    bool first = true;
-    for (const auto& [key, node]: dict) {
-      if (!first) {
-        output << ", ";
-      }
-      first = false;
-      PrintValue(key, output);
-      output << ": ";
-      PrintNode(node, output);
+    PrintContext Indented() const {
+        return {out, indent + indent_step, indent_step};
     }
-    output << '}';
-  }
+};
 
-  void PrintNode(const Json::Node& node, std::ostream& output) {
-    visit([&output](const auto& value) { PrintValue(value, output); },
-          node.GetBase());
-  }
+void PrintNode(const Json::Node &node, const PrintContext& ctx);
 
-  void Print(const Document& document, std::ostream& output) {
-    PrintNode(document.GetRoot(), output);
-  }
+template <typename Value>
+void PrintValue(const Value &value, const PrintContext& ctx) {
+    ctx.out << value;
+}
+
+void PrintString(const std::string& value, std::ostream& out) {
+    out.put('"');
+    for (const char c : value) {
+        switch (c) {
+        case '\r':
+            out << "\\r"sv;
+            break;
+        case '\n':
+            out << "\\n"sv;
+            break;
+        case '"':
+        case '\\':
+            out.put('\\');
+        default:
+            out.put(c);
+        }
+    }
+    out.put('"');
+}
+
+template <>
+void PrintValue<std::string>(const std::string& value, const PrintContext& ctx) {
+    PrintString(value, ctx.out);
+}
+
+template <>
+void PrintValue<std::nullptr_t>(const std::nullptr_t&, const PrintContext& ctx) {
+    ctx.out << "null"sv;
+}
+
+template <>
+void PrintValue<bool>(const bool& value, const PrintContext& ctx) {
+    ctx.out << (value ? "true"sv : "false"sv);
+}
+
+template <>
+void PrintValue<Array>(const Array& nodes, const PrintContext& ctx) {
+    std::ostream& out = ctx.out;
+    out << "[\n"sv;
+    bool first = true;
+    auto inner_ctx = ctx.Indented();
+    for (const Node& node : nodes)
+    {
+        if (first)
+        {
+            first = false;
+        } else {
+            out << ",\n"sv;
+        }
+        inner_ctx.PrintIndent();
+        PrintNode(node, inner_ctx);
+    }
+    out.put('\n');
+    ctx.PrintIndent();
+    out.put(']');
+}
+
+template <>
+void PrintValue<Dict>(const Dict& dict, const PrintContext& ctx) {
+    std::ostream& out = ctx.out;
+    out << "{\n"sv;
+    bool first = true;
+    auto inner_ctx = ctx.Indented();
+    for (const auto& [key, node] : dict)
+    {
+        if (first)
+        {
+            first = false;
+        } else {
+            out << ",\n"sv;
+        }
+        inner_ctx.PrintIndent();
+        PrintString(key, out);
+        out << ": "sv;
+        PrintNode(node, inner_ctx);
+    }
+    out.put('\n');
+    ctx.PrintIndent();
+    out.put('}');
+}
+
+void PrintNode(const Node& node, const PrintContext& ctx) {
+    std::visit([&ctx](const auto& value) { 
+                PrintValue(value, ctx);
+            },
+            node.GetBase());
+}
+
+void Print(const Document& document, std::ostream& output) {
+    PrintNode(document.GetRoot(), PrintContext{output});
+}
 
 }

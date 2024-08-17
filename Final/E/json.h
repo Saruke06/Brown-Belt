@@ -5,61 +5,49 @@
 #include <string>
 #include <variant>
 #include <vector>
-#include <sstream>
+#include <utility>
 
-namespace Json {
+namespace Json
+{
 
-  class Node;
-  using Dict = std::map<std::string, Node>;
+class Node;
+using Dict = std::map<std::string, Node>;
+using Array = std::vector<Node>;
 
-  class Node : std::variant<std::vector<Node>, Dict, bool, int, double, std::string> {
-  public:
+class Node : std::variant<Array, Dict, bool, int, double, std::string> {
+public:
     using variant::variant;
     const variant& GetBase() const { return *this; }
 
-    const auto& AsArray() const { return std::get<std::vector<Node>>(*this); }
-    const auto& AsMap() const { return std::get<Dict>(*this); }
+    const auto &AsArray() const { return std::get<std::vector<Node>>(*this); }
+    const auto &AsMap() const { return std::get<Dict>(*this); }
     bool AsBool() const { return std::get<bool>(*this); }
     int AsInt() const { return std::get<int>(*this); }
-    double AsDouble() const { 
+    double AsDouble() const
+    {
         return std::holds_alternative<double>(*this) ? std::get<double>(*this) : std::get<int>(*this);
     }
-    const auto& AsString() const { return std::get<std::string>(*this); }
-  };
+    const auto &AsString() const { return std::get<std::string>(*this); }
+};
 
-  class Document {
-  public:
+class Document
+{
+public:
     explicit Document(Node root) : root(std::move(root)) {}
 
-    const Node& GetRoot() const {
-      return root;
+    const Node &GetRoot() const
+    {
+        return root;
     }
 
-  private:
+private:
     Node root;
-  };
+};
 
-  Document Load(std::istream& input = std::cin);
+Node LoadNode(std::istream &input);
 
+Document Load(std::istream &input = std::cin);
 
-  void PrintNode(const Json::Node& node, std::ostream& output);
+void Print(const Document &document, std::ostream &output);
 
-  template <typename Value>
-  void PrintValue(const Value& value, std::ostream& output);
-
-  template <>
-  void PrintValue<std::string>(const std::string& value, std::ostream& output);
-
-  template <>
-  void PrintValue<bool>(const bool& value, std::ostream& output);
-
-  template <>
-  void PrintValue<std::vector<Node>>(const std::vector<Node>& nodes, std::ostream& output);
-
-  template <>
-  void PrintValue<Dict>(const Dict& dict, std::ostream& output);
-
-  void PrintNode(const Json::Node& node, std::ostream& output);
-
-  void Print(const Document& document, std::ostream& output);
 }

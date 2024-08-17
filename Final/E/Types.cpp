@@ -99,7 +99,7 @@ RoutingSetting::RoutingSetting(double wait_time, double velocity)
 
 Item::Item(Graph::EDGE_TYPE edge_type, std::string name, Minutes time, size_t span)
     : edge_type(edge_type)
-    , name(move(name))
+    , name(std::move(name))
     , time(time)
     , span(span)
 {
