@@ -1,12 +1,9 @@
 #include "builder.h"
 #include <fstream>
 
-using namespace std;
-using namespace Json;
-
 int main() {
 
-    std::fstream input("input.txt");
+    //std::fstream input("input.txt");
 
     auto CITY_ROUTER = std::make_unique<Builder>();
 

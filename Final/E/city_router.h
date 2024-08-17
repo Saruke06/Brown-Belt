@@ -7,10 +7,10 @@ class CityRouter {
         std::unordered_map<std::string, ptrBus> all_buses;
     public:
         CityRouter() = default;
-        void AddStop(Json::Dict const& dict);
-        void AddBus(Json::Dict const& dict);
+        void AddStop(const Json::Dict& dict);
+        void AddBus(const Json::Dict& dict);
 
-        std::optional<BusInfo> GetInfoForBus(std::string const& name) const;
+        std::optional<BusInfo> GetInfoForBus(const std::string& name) const;
         Json::Dict GetInfoForStop(const Json::Dict& dict) const;
         Json::Dict GetInfoForBus(const Json::Dict& dict) const;
 };
